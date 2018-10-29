@@ -17,13 +17,13 @@ namespace JsonLens.Test
             Results = new List<(int, Token)>();
             Tokenizer = new JsonTokenizer();
         }
-        
+
         [Fact]
         public void OpeningBrace()
         {
-            var result = Tokenizer.Read("{}".AsSpan()).Value;                        
+            var result = Tokenizer.Read("{}".AsSpan()).Value;
             result.CharsRead.ShouldBe(1);
-            result.Token.ShouldBe(Token.OpenBrace);
+            result.Token.ShouldBe(Token.Object);
         }
 
         [Fact]
@@ -34,17 +34,17 @@ namespace JsonLens.Test
 
             var result1 = Tokenizer.Read(span.Slice(i)).Value;
             result1.CharsRead.ShouldBe(1);
-            result1.Token.ShouldBe(Token.OpenBrace);
+            result1.Token.ShouldBe(Token.Object);
 
             var result2 = Tokenizer.Read(span.Slice(i += result1.CharsRead)).Value;
             result2.CharsRead.ShouldBe(1);
-            result2.Token.ShouldBe(Token.CloseBrace);
+            result2.Token.ShouldBe(Token.EndObject);
 
             var result3 = Tokenizer.Read(span.Slice(i += result2.CharsRead)).Value;
             result3.CharsRead.ShouldBe(1);
             result3.Token.ShouldBe(Token.End);
         }
-     
+
         public class WithSimpleDriver
         {
             [Fact]
@@ -53,13 +53,13 @@ namespace JsonLens.Test
                     .ShouldBe(new[] {
                         (Token.End, "")
                     });
-            
+
             [Fact]
             public void OpenCloseEnd()
                 => Tokenize("{}")
                     .ShouldBe(new[] {
-                        (Token.OpenBrace, "{"),
-                        (Token.CloseBrace, "}"),
+                        (Token.Object, "{"),
+                        (Token.EndObject, "}"),
                         (Token.End, "")
                     });
 
@@ -107,13 +107,13 @@ namespace JsonLens.Test
             var results = new List<(Token, string)>();
             bool go = true;
             int i = 0;
-            
-            while(go)
+
+            while (go)
             {
                 var result = tokenizer.Read(span.Slice(i));
                 if (!result.HasValue) break; //should throw error???
 
-                switch(result.Value.Type)
+                switch (result.Value.Type)
                 {
                     case ResultType.Underrun:
                         go = false;
@@ -131,13 +131,84 @@ namespace JsonLens.Test
             return results.ToArray();
         }
     }
-
+    
     public class JsonTokenizer
     {
+        Stack<Mode> _modes;
+
+        public Result? Parse(ReadOnlySpan<char> inp)
+        {
+            switch(_modes.Peek())
+            {
+                case Mode.Line:
+                    return ParseString(inp)
+                        ?? ParseObject(inp);
+
+                case Mode.Object:
+                    return ParseKeyValue(inp)
+                        ?? ParseObjectEnd(inp);
+
+                case Mode.Array:
+                    break;
+            }
+            throw new NotImplementedException();
+        }
+
+        Result? ParseObject(ReadOnlySpan<char> inp)
+        {
+            if(inp[0] == '{')
+            {
+                _modes.Push(Mode.Object);
+                return (Token.Object, 1);
+            }
+
+            return Skip();
+        }
+
+        Result? ParseObjectEnd(ReadOnlySpan<char> inp)
+        {
+            if(inp[0] == '}')
+            {
+                _modes.Pop();
+                return (Token.EndObject, 1);
+            }
+
+            return Skip();
+        }
+
+        Result? ParseKeyValue(ReadOnlySpan<char> inp)
+        {
+            throw new NotImplementedException();
+        }
+        
+        Result? ParseString(ReadOnlySpan<char> inp)
+        {
+            if(inp[0] == '"')
+            {
+                for (int i = 1; i < inp.Length; i++)
+                {
+                    switch (inp[i])
+                    {
+                        case '\\':
+                            i++;
+                            break;
+
+                        case '"':
+                            return (Token.String, i + 1);
+                    }
+                }
+
+                return Underrun();
+            }
+
+            return Skip();
+        }
+
+
         public Result? Read(ReadOnlySpan<char> inp)
         {
             if (inp.Length == 0)
-                return ResultType.Underrun;
+                return Underrun();
             else 
                 return ReadEnd(inp)
                     ?? ReadSyntax(inp)
@@ -148,29 +219,29 @@ namespace JsonLens.Test
         Result? ReadEnd(ReadOnlySpan<char> inp)
             => inp[0] == 0
                 ? (Token.End, 1)
-                : (Result?)null;
+                : Skip();
         
         Result? ReadSyntax(ReadOnlySpan<char> inp)
         {
             switch(inp[0])
             {
                 case '{':
-                    return (Token.OpenBrace, 1);
+                    return (Token.Object, 1);
 
                 case '}':
-                    return (Token.CloseBrace, 1);
+                    return (Token.EndObject, 1);
 
                 case ':':
                     return (Token.Colon, 1);
 
                 default:
-                    return null;
+                    return Skip();
             }
         }
 
         Result? ReadString(ReadOnlySpan<char> inp)
         {
-            if (inp[0] != '"') return null;
+            if (inp[0] != '"') return Skip();
 
             for (int i = 1; i < inp.Length; i++)
             {
@@ -185,12 +256,12 @@ namespace JsonLens.Test
                 }
             }
 
-            return ResultType.Underrun;
+            return Underrun();
         }
 
         Result? ReadNumber(ReadOnlySpan<char> inp)
         {
-            if (!IsNumeric(inp[0])) return null;
+            if (!IsNumeric(inp[0])) return Skip();
 
             for(int i = 0; i < inp.Length; i++) {
                 if (!IsNumeric(inp[i])) {
@@ -198,7 +269,7 @@ namespace JsonLens.Test
                 }
             }
 
-            return ResultType.Underrun;
+            return Underrun();
 
             //how can we distinguish between a real end
             //and a simple underrun? Some kind of special character from above - a '0' maybe
@@ -217,7 +288,11 @@ namespace JsonLens.Test
 
         Result? Skip()
             => null;
-                
+
+        Result? Underrun()
+            => ResultType.Underrun;
+
+
         public struct Result
         {
             public readonly ResultType Type;
@@ -251,11 +326,19 @@ namespace JsonLens.Test
         Empty,
         NewLine,
         Comment,
-        OpenBrace,
-        CloseBrace,
+        Object,
+        EndObject,
         Colon,
         String,
         Number
     }
     
+    public enum Mode : byte
+    {
+        Line,
+        Object,
+        Array,
+        Value
+    }
+
 }
