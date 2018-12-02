@@ -14,6 +14,10 @@ namespace JsonLens.Test
                 return Underrun;
             }
 
+            if(x.Mode != Mode.String && IsWhitespace(x.Span[0])) {
+                return SkipWhitespace(ref x);
+            }
+            
             switch(x.Mode)
             {
                 case Mode.Start:
@@ -149,9 +153,25 @@ namespace JsonLens.Test
             return Underrun;
         }
 
+        Result SkipWhitespace(ref Context x)
+        {
+            int i = 0;
+
+            for (; i < x.Span.Length; i++)
+            {
+                if (!IsWhitespace(x.Span[i]))
+                    break;
+            }
+
+            return Ok(i, x.Mode);
+        }
+
         
         bool IsNumeric(char c)
             => c >= 48 && c < 58;
+
+        bool IsWhitespace(char c)
+            => c == ' '; //more to add!
 
 
         Result Ok(Mode next)

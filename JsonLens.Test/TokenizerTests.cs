@@ -130,6 +130,21 @@ namespace JsonLens.Test
                         (Token.End, "")
                     });
 
+
+
+            public class IgnoresWhitespace
+            {
+                [Fact]
+                public void AroundNumber()
+                    => Tokenize(" 123   ")
+                        .ShouldBe(new[] {
+                            (Token.Line, ""),
+                            (Token.Number, "123"),
+                            (Token.End, "")
+                        });
+
+            }
+
         }
 
 
