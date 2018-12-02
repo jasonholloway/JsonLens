@@ -44,12 +44,16 @@ namespace JsonLens.Test
                             x.Emit(Token.String);
                             return Ok(1, Mode.String);
 
+                        case char c when IsNumeric(c):
+                            return ReadNumber(ref x);
+
                         case '{':
                             x.Emit(Token.Object);
                             return Ok(1, Mode.Object);
 
-                        case char c when c > 0:
-                            return ReadNumber(ref x);
+                        case '[':
+                            x.Emit(Token.Array);
+                            return Ok(1, Mode.Array);
                     }
                     break;
 
@@ -60,14 +64,14 @@ namespace JsonLens.Test
                 
                 case Mode.Object:
                     switch (x.Span[0]) {
+                        case '}':
+                            x.Emit(Token.ObjectEnd);
+                            return Ok(1, x.Pop());
+
                         case '"':
                             x.Emit(Token.String);
                             x.Push(Mode.ObjectSeparator);
                             return Ok(1, Mode.String);
-
-                        case '}':
-                            x.Emit(Token.ObjectEnd);
-                            return Ok(1, x.Pop());
                     }
                     break;
                 
@@ -80,6 +84,25 @@ namespace JsonLens.Test
                     break;
 
                 case Mode.Array:
+                    switch(x.Span[0]) {
+                        case ']':
+                            x.Emit(Token.ArrayEnd);
+                            return Ok(1, x.Pop());
+
+                        default:
+                            x.Push(Mode.ArrayTail);
+                            return Ok(Mode.Value);
+                    }
+
+                case Mode.ArrayTail:
+                    switch (x.Span[0]) {
+                        case ']':
+                            x.Emit(Token.ArrayEnd);
+                            return Ok(1, x.Pop());
+
+                        case ',':
+                            return Ok(1, Mode.Array);
+                    }
                     break;
 
                 case Mode.String:
@@ -223,7 +246,9 @@ namespace JsonLens.Test
         Number,
         Prop,
         Key,
-        LineEnd
+        LineEnd,
+        Array,
+        ArrayEnd
     }
 
     public enum Mode : byte
@@ -240,7 +265,8 @@ namespace JsonLens.Test
         LineEnd,
         End,
         Start,
-        ObjectSeparator
+        ObjectSeparator,
+        ArrayTail
     }
 
     public enum ModeAction : byte

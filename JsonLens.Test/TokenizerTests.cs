@@ -98,6 +98,38 @@ namespace JsonLens.Test
                         (Token.End, "")
                     });
 
+            [Fact]
+            public void ArrayWithValues()
+                => Tokenize("[1,2,3,\"hello\"]")
+                    .ShouldBe(new[] {
+                        (Token.Line, ""),
+                        (Token.Array, ""),
+                        (Token.Number, "1"),
+                        (Token.Number, "2"),
+                        (Token.Number, "3"),
+                        (Token.String, ""),
+                        (Token.StringEnd, "hello"),
+                        (Token.ArrayEnd, ""),
+                        (Token.End, "")
+                    });
+
+            [Fact]
+            public void NestedArrays()
+                => Tokenize("[1,[2,3],[]]")
+                    .ShouldBe(new[] {
+                        (Token.Line, ""),
+                        (Token.Array, ""),
+                        (Token.Number, "1"),
+                        (Token.Array, ""),
+                        (Token.Number, "2"),
+                        (Token.Number, "3"),
+                        (Token.ArrayEnd, ""),
+                        (Token.Array, ""),
+                        (Token.ArrayEnd, ""),
+                        (Token.ArrayEnd, ""),
+                        (Token.End, "")
+                    });
+
         }
 
 
