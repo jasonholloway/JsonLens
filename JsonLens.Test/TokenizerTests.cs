@@ -151,7 +151,7 @@ namespace JsonLens.Test
         static (Token, string)[] Tokenize(string input)
         {
             var tokenizer = new JsonTokenizer();
-            var x = new Context(input.AsZeroTerminatedSpan(), 0, Mode.Start);
+            var x = new Context(input.AsZeroTerminatedSpan(), 0, Mode.Line);
             
             while (true)
             {
