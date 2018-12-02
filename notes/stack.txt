@@ -1,0 +1,140 @@
+
+
+
+ObjectKey
+  String
+    StringChunk | StringEnd
+  StringEnd
+ObjectValue
+  Value  
+    Number
+  Value      <- popping back to Value here is problematic; really we want to go back to ObjectValueEnd
+				like, ObjectValue > Value > Number ¬ ObjectValueEnd
+				so ObjectValue needs to seed the stack with its inevitable return destination
+				Value knows nothing; Number knows less; only ObjectValue knows its own semantics
+				alternatively ObjectValue could look back at the path to it - but then this requires a peeking through the curtains
+				pre-seeding the stack instead imposes forwards - determines from outside how we will proceed
+				with the certainty of the pregenitor - a natural (and therefore reasonable-seeming) analogy
+  
+				So:
+				a mode that wants to repeat itself, like the regex asterisk, will push to the stack its own mode: recursion via the stack
+				a mode that says 'only once and then' needs to push a distinct mode to be picked up
+				
+				but then... why do some non-repeating modes not require this stack-pushing tactic?
+				String > Chunk > StringEnd : this is because the middle mode here is specialized, optimized for strings in particular
+				it could be stretched out to do the following:
+				
+				MValue
+				  " => MString
+								
+				MString
+				  Push MStringEnd
+				  Switch MChunk
+				  
+				MChunk
+				  [a-zA-Z] => Emit Chunk
+						| Pop
+				
+				MStringEnd
+				  " => Pop 
+  
+				But then the above can be optimized to just have the single specialized mode in the middle
+				
+				Best tactic here would be to use the standard way of proceeding -> keeps things simple, allows clean second pass of optimisation
+	
+---------------------------------
+
+but if the stack has no semantic meaning
+we then can't use it for path-finding...
+
+the token stream can be used as such
+but then we have to output tokens for nodes
+well, here we are - thre actual AST is of course a tree of nodes
+that is how the information *is*
+if we serialize into a flat streamof tokens
+then we'll have to do work again to summon up its latent, encoded shape
+it'd be efficient then to avoid this encoding/decoding
+but we don't want to allocate an entire graph;
+instead we could have a stack of contexts
+but such a stack would be transient, and in path-finding, what'd be most useful
+would be a more abstract grasp of position: as in, numerical depth
+to keep tabs on this, to aggregate this, we need a clean stream of info to aggregate from
+
+we'd have a filter, which would then be delegated to at select places as we move through the stream
+at this point, the whole tokenizer/parser split makes most sense:
+a functional separation to allow us to simplify our problem
+
+-----
+
+Tokenizer/Parser
+
+the tokenizer then has its own stack, separate from that of the parser/filter thing that comes afterwards
+
+could therebe a shared stack? Surely it's possible, though at the expense of clarity; and with the clarity will go simplicity;
+and with the loss of simplicity, filtering will be complicated, duh
+
+at least the second stack would only be accessed now and again, in comparison with the frequently-used tokenizing stack
+
+-----
+
+Object
+  [{]
+  Prop | ObjectEnd
+  
+ObjectEnd
+  [}]
+  Pop
+  
+Prop
+  ["]
+  Push PropSeparator
+  String
+  
+PropSeparator
+  [:]
+  PropValue
+  
+PropValue
+  Push PropEnd
+  Value
+  
+PropEnd
+  [,]
+  Prop | ObjectEnd  
+  
+Value
+  Number | String | Object | Array
+  
+String
+  StringChunk | StringEnd
+  
+StringEnd
+  ["]
+  Pop
+  
+Number
+  [0-9]+
+  Pop
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+	
+	
+	
+	
+	
+	
+	
+	
