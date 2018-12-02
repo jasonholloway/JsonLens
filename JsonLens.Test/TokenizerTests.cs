@@ -27,8 +27,9 @@ namespace JsonLens.Test
             public void OpenCloseEnd()
                 => Tokenize("{}")
                     .ShouldBe(new[] {
-                        (Token.Object, "{"),
-                        (Token.ObjectEnd, "}"),
+                        (Token.Line, ""),
+                        (Token.Object, ""),
+                        (Token.ObjectEnd, ""),
                         (Token.End, "")
                     });
 
@@ -36,15 +37,41 @@ namespace JsonLens.Test
             public void SimpleString()
                 => Tokenize("\"Hello!!!\"")
                     .ShouldBe(new[] {
-                        (Token.String, "Hello!!!"),
+                        (Token.Line, ""),
+                        (Token.String, ""),
+                        (Token.StringEnd, "Hello!!!"),
                         (Token.End, "")
                     });
 
             [Fact]
             public void SimpleString_WithEscapedQuote()
-                => Tokenize("\"Bl\\\"ah\"")
+                => Tokenize(@"""Bl\""ah""")
                     .ShouldBe(new[] {
-                        (Token.String, "Bl\\\"ah"),
+                        (Token.Line, ""), 
+                        (Token.String, ""),
+                        (Token.StringEnd, "Bl\\\"ah"), //BUT!!! the escape needs decoding in the reading...
+                        (Token.End, "")
+                    });
+
+            [Fact]
+            public void SimpleString_WithEscapedEscape()
+                => Tokenize("\"Oi\\\"")
+                    .ShouldBe(new[] {
+                        (Token.Line, ""),
+                        (Token.String, ""),
+                        (Token.StringEnd, "Oi\\"),
+                        (Token.End, "")
+                    });
+
+
+
+            [Fact]
+            public void SimpleString_WithSpaceAtStart()
+                => Tokenize("\"  Boo!\"")
+                    .ShouldBe(new[] {
+                        (Token.Line, ""),
+                        (Token.String, ""),
+                        (Token.StringEnd, "  Boo!"),
                         (Token.End, "")
                     });
 
@@ -52,11 +79,13 @@ namespace JsonLens.Test
             public void ObjectWithProperty()
                 => Tokenize("{\"wibble\":\"blah\"}")
                     .ShouldBe(new[] {
-                        (Token.Object, "{"),
-                        (Token.Prop, ""),
-                        (Token.String, "wibble"),
-                        (Token.String, "blah"),
-                        (Token.ObjectEnd, "}"),
+                        (Token.Line, ""),
+                        (Token.Object, ""),
+                        (Token.String, ""),
+                        (Token.StringEnd, "wibble"),
+                        (Token.String, ""),
+                        (Token.StringEnd, "blah"),
+                        (Token.ObjectEnd, ""),
                         (Token.End, "")
                     });
 
@@ -64,15 +93,18 @@ namespace JsonLens.Test
             public void SimpleNumber()
                 => Tokenize("1234")
                     .ShouldBe(new[] {
+                        (Token.Line, ""),
                         (Token.Number, "1234"),
                         (Token.End, "")
                     });
+
         }
+
 
         static (Token, string)[] Tokenize(string input)
         {
             var tokenizer = new JsonTokenizer();
-            var x = new Context(input.AsZeroTerminatedSpan(), 0, Mode.Line);
+            var x = new Context(input.AsZeroTerminatedSpan(), 0, Mode.Start);
             
             while (true)
             {
@@ -82,65 +114,27 @@ namespace JsonLens.Test
                 {
                     case Status.Ok:
                         x.Span = x.Span.Slice(charsRead);
+                        x.Index += charsRead;
                         x.Mode = nextMode.Value;
                         break;
 
                     case Status.End:
                         return x.Output
-                                .Select(o => (o.Item1, ""))
+                                .Select(emitted => {
+                                    var (token, (start, len)) = emitted;
+                                    return (token, input.Substring(start, len));
+                                })
                                 .ToArray();
 
                     case Status.Underrun:
-                        throw new NotImplementedException("UNDERRUN to do!");
+                        throw new NotImplementedException("UNDERRUN");
 
                     case Status.BadInput:
-                        throw new NotImplementedException("BADINPUT to do!");
+                        throw new NotImplementedException("BADINPUT");
                 }
             }
 
         }
     }
     
-
-    public class ContextTests
-    {
-        //[Fact]
-        //public void StateMutates()
-        //{
-        //    var context = new Context("hello".AsSpan());
-        //    Blah(ref context);
-        //    Blah(ref context);
-        //    context.Index.ShouldBe(4);
-
-        //    void Blah(ref Context x)
-        //        => x.Emit(Token.Colon, 2);
-        //}
-
-        [Fact]
-        public void NullFallback_WorksAsExpected()
-        {
-            var r = Ok() ?? OhDear();
-            r.ShouldBe(Status.Ok);
-            
-            Status? Ok()
-                => Status.Ok;
-
-            Status? OhDear()
-                => throw new Exception("bugger");
-        }
-
-        [Fact]
-        public void BoolFallback_SurprisinglyAlsoWorks()
-        {
-            var r = Ok() || OhDear();
-            r.ShouldBe(true);
-
-            bool Ok()
-                => true;
-
-            bool OhDear()
-                => throw new Exception("bugger");
-        }
-    }
-
 }

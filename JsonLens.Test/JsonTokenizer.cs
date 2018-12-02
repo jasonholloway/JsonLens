@@ -14,21 +14,29 @@ namespace JsonLens.Test
                 return Underrun;
             }
 
-            if(x.Span[0] == 0) {    //but file-end makes no sense in the middle of most yieldings...
-                x.Emit(Token.End);  //it only makes sense at the end of a line
-                return End;
-            }
-
             switch(x.Mode)
             {
+                case Mode.Start:
+                    if (x.Span[0] == 0)
+                        return Ok(Mode.End);
+                    else
+                        return Ok(Mode.Line);
+
                 case Mode.Line:
-                    x.Emit(Token.NewLine);
+                    x.Emit(Token.Line);
                     x.Push(Mode.LineEnd);
                     return Ok(Mode.Value);
 
                 case Mode.LineEnd:
-                    throw new NotImplementedException("HELLO!!!!!");
+                    switch(x.Span[0]) {
+                        case (char)0:
+                            return Ok(Mode.End);
+                    }
+                    throw new NotImplementedException("Handle line break?");
 
+                case Mode.End:
+                    x.Emit(Token.End);
+                    return End;
 
                 case Mode.Value:
                     switch(x.Span[0]) {
@@ -45,11 +53,17 @@ namespace JsonLens.Test
                     }
                     break;
 
+                //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                //BEWARE spaces at the beginning of strings...
+                //currently, they stand to be suppressed as trivia, as we yield after the first quote
+                //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                
                 case Mode.Object:
-                    switch(x.Span[0]) {
+                    switch (x.Span[0]) {
                         case '"':
-                            x.Emit(Token.Prop);
-                            return Ok(Mode.Prop);
+                            x.Emit(Token.String);
+                            x.Push(Mode.ObjectSeparator);
+                            return Ok(1, Mode.String);
 
                         case '}':
                             x.Emit(Token.ObjectEnd);
@@ -57,11 +71,13 @@ namespace JsonLens.Test
                     }
                     break;
                 
-                case Mode.Prop:
-                    return Ok(Mode.String);
-
-                case Mode.ObjectValue:
-                    return Ok(Mode.Value);
+                case Mode.ObjectSeparator:
+                    switch(x.Span[0]) {
+                        case ':':
+                            x.Push(Mode.Object);
+                            return Ok(1, Mode.Value);
+                    }
+                    break;
 
                 case Mode.Array:
                     break;
@@ -69,7 +85,7 @@ namespace JsonLens.Test
                 case Mode.String:
                     return ReadString(ref x);
             }
-
+            
             return BadInput;
         }
 
@@ -80,7 +96,7 @@ namespace JsonLens.Test
             {
                 if (!IsNumeric(x.Span[i]))
                 {
-                    x.Emit(Token.Number);
+                    x.Emit(Token.Number, 0, i);
                     return Ok(i, x.Pop());
                 }
             }
@@ -92,27 +108,27 @@ namespace JsonLens.Test
         {
             int i = 0;
 
-            for (i = 1; i < x.Span.Length; i++)
+            for (; i < x.Span.Length; i++)
             {
                 switch (x.Span[i])
                 {
                     case '\\':      //BUT! what about "\\", eh???
-                        continue;
+                        i++;
+                        break;
 
                     case '"':
-                        x.Emit(Token.StringChunk);
-                        return Ok(i, x.Pop());
+                        x.Emit(Token.StringEnd, 0, i);
+                        return Ok(i + 1, x.Pop());
                 }
             }
 
-            x.Emit(Token.StringChunk);  //but only if i > 1...!
+            x.Emit(Token.StringPart, 0, i);  //but only if i > 1...!
             return Underrun;
         }
 
         
         bool IsNumeric(char c)
             => c >= 48 && c < 58;
-
 
 
         Result Ok(Mode next)
@@ -137,7 +153,7 @@ namespace JsonLens.Test
         public ReadOnlySpan<char> Span;
         public int Index;
         public Stack<Mode> ModeStack;
-        public List<(Token, (int, int)?)> Output;
+        public List<(Token, (int, int))> Output;
         public Mode Mode;
 
         public Context(ReadOnlySpan<char> span, int index, Mode mode)
@@ -145,7 +161,7 @@ namespace JsonLens.Test
             Span = span;
             Index = index;
             ModeStack = new Stack<Mode>();
-            Output = new List<(Token, (int, int)?)>();
+            Output = new List<(Token, (int, int))>();
             Mode = mode;
         }
 
@@ -175,10 +191,10 @@ namespace JsonLens.Test
 
 
         public void Emit(Token token)
-            => Output.Add((token, null));
+            => Output.Add((token, (Index, 0)));
 
-        public void Emit(Token token, int from, int to)
-            => Output.Add((token, (from, to)));
+        public void Emit(Token token, int from, int len)
+            => Output.Add((token, (Index + from, len)));
 
     }
 
@@ -196,17 +212,18 @@ namespace JsonLens.Test
         None,
         End,
         Empty,
-        NewLine,
+        Line,
         Comment,
         Object,
         ObjectEnd,
         Colon,
         String,
-        StringChunk,
+        StringPart,
         StringEnd,
         Number,
         Prop,
-        Key
+        Key,
+        LineEnd
     }
 
     public enum Mode : byte
@@ -217,10 +234,13 @@ namespace JsonLens.Test
         Array,
         Value,
         String,
-        Prop,
+        ObjectKey,
         ObjectValue,
         Number,
-        LineEnd
+        LineEnd,
+        End,
+        Start,
+        ObjectSeparator
     }
 
     public enum ModeAction : byte
