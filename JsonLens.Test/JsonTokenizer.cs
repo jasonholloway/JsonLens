@@ -6,9 +6,9 @@ namespace JsonLens.Test
     using Result = ValueTuple<Status, int, Mode?>;
 
 
-    public class JsonTokenizer
+    public static class JsonTokenizer
     {
-        public Result Tokenize(ref Context x)
+        public static Result Tokenize(ref TokenizerContext x)
         {
             if(x.Span.Length == 0) { //should just try reading, surely...
                 return Underrun;
@@ -113,7 +113,7 @@ namespace JsonLens.Test
         }
 
 
-        Result ReadNumber(ref Context x)
+        static Result ReadNumber(ref TokenizerContext x)
         {
             for(int i = 1; i < x.Span.Length; i++)
             {
@@ -127,7 +127,7 @@ namespace JsonLens.Test
             return Underrun;
         }
 
-        Result ReadString(ref Context x)
+        static Result ReadString(ref TokenizerContext x)
         {
             int i = 0;
 
@@ -149,7 +149,7 @@ namespace JsonLens.Test
             return Underrun;
         }
 
-        Result SkipWhitespace(ref Context x)
+        static Result SkipWhitespace(ref TokenizerContext x)
         {
             int i = 0;
 
@@ -163,31 +163,31 @@ namespace JsonLens.Test
         }
 
         
-        bool IsNumeric(char c)
+        static bool IsNumeric(char c)
             => c >= 48 && c < 58;
 
-        bool IsWhitespace(char c)
+        static bool IsWhitespace(char c)
             => c == ' '; //more to add!
 
 
-        Result Ok(Mode next)
+        static Result Ok(Mode next)
             => (Status.Ok, 0, next);
 
-        Result Ok(int charsRead, Mode next)
+        static Result Ok(int charsRead, Mode next)
             => (Status.Ok, charsRead, next);
 
-        Result Underrun
+        static Result Underrun
             => (Status.Underrun, 0, null);
 
-        Result End
+        static Result End
             => (Status.End, 0, null);
 
-        Result BadInput
+        static Result BadInput
             => (Status.BadInput, 0, null);
     }
 
 
-    public ref struct Context
+    public ref struct TokenizerContext
     {
         public ReadOnlySpan<char> Span;
         public int Index;
@@ -195,7 +195,7 @@ namespace JsonLens.Test
         public List<(Token, (int, int))> Output;
         public Mode Mode;
 
-        public Context(ReadOnlySpan<char> span, int index, Mode mode)
+        public TokenizerContext(ReadOnlySpan<char> span, int index, Mode mode)
         {
             Span = span;
             Index = index;
