@@ -139,18 +139,17 @@ namespace JsonLens.Test
 
         static (Token, string)[] Tokenize(string input)
         {
-            var x = new TokenizerContext(input.AsZeroTerminatedSpan(), 0, Mode.Line);
+            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan(), 0, Mode.Line);
 
             while (true)
             {
-                var (status, charsRead, nextMode) = JsonTokenizer.Tokenize(ref x);
+                var (status, charsRead) = Tokenizer.Read(ref x);
 
                 switch (status)
                 {
                     case Status.Ok:
                         x.Span = x.Span.Slice(charsRead);
                         x.Index += charsRead;
-                        x.Mode = nextMode.Value;
                         break;
 
                     case Status.End:
@@ -177,18 +176,17 @@ namespace JsonLens.Test
     {        
         public static object Run(string input)
         {
-            var x = new TokenizerContext(input.AsZeroTerminatedSpan(), 0, Mode.Line);
+            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan(), 0, Mode.Line);
 
             while (true)
             {
-                var (status, charsRead, nextMode) = JsonTokenizer.Tokenize(ref x);
+                var (status, charsRead) = Tokenizer.Read(ref x);
 
                 switch (status)
                 {
                     case Status.Ok:
                         x.Span = x.Span.Slice(charsRead);
                         x.Index += charsRead;
-                        x.Mode = nextMode.Value;
                         break;
 
                     case Status.End:
@@ -224,19 +222,7 @@ namespace JsonLens.Test
     }
 
 
-
-
-    //The Selector is itself a tree, effectively of strings
-    //having its nodes as objects opens the possibility 
-    //of subclassing behaviours - can you imagine, for instance
-    //a wildcard? either we subclass here or we interpret instructions
-    //hmm you know... we don't want to check each one individually (or do we?)
-    //some kind of HashSet thing seems best here - or even better, nested Dictionaries
-    //
-    //but we can't just check a dict, as we may have different matching rules in place...
-    //at this juncture maybe it'd be best just to do naive matching
-    //in fact this is exactly (exactly!) where we wanted our fancy trie... but save that for later, eh
-
+    
     public enum Selected
     {
         Select,
@@ -248,53 +234,19 @@ namespace JsonLens.Test
     {
         (Selected, ISelector) TrySelect(string propName);
 
-        //false above means 'skip it'
-        //whereas a true means 'take it'
-        //but in taking, the selector also needs to yield back a new frame
-        //
-        //eventually, once we get to the leaf node of a selector, TrySelect should say 'take all of this'
-        //then the fsm should skip through till all is done
-        //though the selector effectively the fsm here - all we do at this layer is selection
-        //
-        //but the skipping is a shared, stable thing
-        //the deciding of where we are in the selection tree, less so
-        //
-        //but, based on the selector, the fsm will be pushed into one of three modes:
-        //  - normal mode: asking constantly whether we should take or not,
-        //  - skipping mode: don't worry till we're back at the same level as before
-        //  - take mode: course through everything without querying what it is - just spew through
-
-        //if we're doing the lens thing tho, where we wanna re-inject into a stream, the detritus isn't just to be chucked away...
-        //in re-emitting, we need to write our tokens to a new buffer, tho re-emitting will be blocked until we have the replacement values to put in place
-        //but if the input stream all has to be read before we can re-emit, then the input stream is going to build up
-        //or rather, we can't release the buffer holding the input tokens, as we need them to re-emit em once the injection goes through
-
-        //in the driver, input spans are only ours while we have control of the stack, how would a backlog of spans work?
-        //how would we get our spans in the first place? From a buffer, evidently
-        //I think the buffer would actually be ours to manage: we'd receive a stream, which we'd readasync into our own buffer
-        //or at least, the buffer would be under the management of the driver.
-
-        //and so, a kind of backlog would be acceptable, as we'd naturally be reading into our own resizable buffer.
-        //we'd keep on reading the token stream, until we had no need 
-        //
-        //
-        //
-
-
-
     }
 
 
+
+
     public class Driver
-    {
-
-
-
+    {        
         public async Task Drive(Stream input, Stream output)
         {
             var buffer = new MemoryStream();
             await input.CopyToAsync(buffer);
             
+
 
             var reader = new StreamReader(input);
 
@@ -331,7 +283,7 @@ namespace JsonLens.Test
         public object Selector;
 
 
-        public TokenizerContext TokenizerContext;
+        public Tokenizer.Context TokenizerContext;
         
     }
 
@@ -392,25 +344,64 @@ namespace JsonLens.Test
     //we don't need to emit of course; we only need to return a Status...
     //
 
+
+
+    //but the filter shouldn't just remove, and let through what we know: 
+    //the underlying stream of tokens needs to be preserved, injected into
+    //
+    //but at the same time, the filter *should* just let through what the binder needs
+    //so the raw tokens should be decanted before the filter; but the binder doesn't just read, it re-inserts
+    //like every bound site needs a handle to be the locus of injection, if needed. 
+    //
+    //but then such handles need to be managed so they stick around. If we wanted this to be fast and super efficient,
+    //then we would get a map, a list of coordinates, of where we needed to exchange bits. But we do have precisely this!
+    //This is exactly what spans are... though they also refer to the underlying memory, and as such have peculiar semantics
+    //
+    //We'd buffer, and re-emit, till we came across a Span<Token> that hadn't yet been approved, either as pass-through,
+    //or as exchanged. The tokens need to be temporarily stored in a buffer, as we need arbitrary look ahead in the replacing of them - therefore
+    //we can't just rely on the easy efficiency of percolation. Each token emitted should be stored in a buffer of tokens - but could that buffer also store
+    //spans? 
+
+    //The initial source stream can serve us back a nice Span, that will give us in-scope access to its innards, to its interior buffer
+    //but as the actual handling of the deserialized, partially-bound mass will be done in asynchronous continuations and allsorts like it,
+    //the spans can't be passed around. If we had a handle on the underlying memory... but there's nothing to stop the input... STOP! The memory is entirely OURS.
+    //
+    //Streams don't expose their own memory: they're just coroutiney things for shovelling back data via the stack. We need a buffer into which to shovel...
+    //of course, if we are actually served a string or ready-made buffer, a shortcut could be taken at that point.
+    //
+
+    //
+    //
+    //
+    //
+
+
+    public static class JsonFilter
+    {
+
+    }
+
                               
     public static class JsonCursor
     {
         public static object Run(ref CursorContext x)
         {
+            var y = x.TokenizerContext;
+            var input = "hello!";
+
             while (true)
             {
-                var (status, charsRead, nextMode) = JsonTokenizer.Tokenize(ref x.TokenizerContext);
-
+                var (status, charsRead) = Tokenizer.Read(ref x.TokenizerContext);
+        
                 switch (status)
                 {
                     case Status.Ok:
-                        x.Span = x.Span.Slice(charsRead);
-                        x.Index += charsRead;
-                        x.Mode = nextMode.Value;
+                        y.Span = y.Span.Slice(charsRead);
+                        y.Index += charsRead;
                         break;
 
                     case Status.End:
-                        return x.Output
+                        return y.Output
                                 .Select(emitted =>
                                 {
                                     var (token, (start, len)) = emitted;

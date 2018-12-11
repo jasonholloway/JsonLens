@@ -1,0 +1,88 @@
+
+        //false above means 'skip it'
+        //whereas a true means 'take it'
+        //but in taking, the selector also needs to yield back a new frame
+        //
+        //eventually, once we get to the leaf node of a selector, TrySelect should say 'take all of this'
+        //then the fsm should skip through till all is done
+        //though the selector effectively the fsm here - all we do at this layer is selection
+        //
+        //but the skipping is a shared, stable thing
+        //the deciding of where we are in the selection tree, less so
+        //
+        //but, based on the selector, the fsm will be pushed into one of three modes:
+        //  - normal mode: asking constantly whether we should take or not,
+        //  - skipping mode: don't worry till we're back at the same level as before
+        //  - take mode: course through everything without querying what it is - just spew through
+
+        //if we're doing the lens thing tho, where we wanna re-inject into a stream, the detritus isn't just to be chucked away...
+        //in re-emitting, we need to write our tokens to a new buffer, tho re-emitting will be blocked until we have the replacement values to put in place
+        //but if the input stream all has to be read before we can re-emit, then the input stream is going to build up
+        //or rather, we can't release the buffer holding the input tokens, as we need them to re-emit em once the injection goes through
+
+        //in the driver, input spans are only ours while we have control of the stack, how would a backlog of spans work?
+        //how would we get our spans in the first place? From a buffer, evidently
+        //I think the buffer would actually be ours to manage: we'd receive a stream, which we'd readasync into our own buffer
+        //or at least, the buffer would be under the management of the driver.
+
+        //and so, a kind of backlog would be acceptable, as we'd naturally be reading into our own resizable buffer.
+        //we'd keep on reading the token stream, until we had no need 
+
+
+        //we're having to create quite a few buffers here then
+        //firstly, a buffer for reading from (feels wrong!) but if we're going to re-emit with a delay, we have to buffer it, no choice whatsoever.
+        //secondly, a buffer for storing tokens in - for the same reason as the above, as we need to keep our mapping of whats in the first buffer around for later use, it hase to be stored
+        //thirdly (however) we don't need to buffer the output - we can just chug it out to the stream interface
+
+        //what then the status of our little handler things? We don't need them to be passed around as objects after all.
+        //If 'bound' TokenSpans were stored in a third buffer, then the replacements could be zipped into place at last.
+        //Though this third buffer isn't to be exposed as one big block, but rather a further coroutine interface is needed.
+        //
+        //There'd be two kinds of driving, then:
+        //- Reading/Tokenizing/Filtering
+        //- Re-emitting
+        //  when re-emitting, we'd basically iterate through each token offered up to us by the previous reading
+        //  though, the underlying library would hide some of the re-emitting from us (unbound bits would be re-splurged without comment)
+        //  without the filter layer, all tokens would be served up.
+        //
+        //  for tokens from below to still refer to something, the referreds need to be kept in a buffer
+        //  for tokens to be re-emittable with arbitrary delays and lookahead, the tokens themselves need to be buffered by the intermediate layer
+        //
+        //  then the binder would itself have some kind of state too, so it knew which TokenSpans to re-emit, and which to replace.        
+        //
+        //-----
+        //from outside, the selector should create for us a list of bindings
+        //which we then want to be able to serialize into, as well as deserialize out of. Each binding would be coercable to a .NET type via a serializer (hello JSON.net!)
+        //if you selected *everything* then everything would be given to the serializer, and losses would ensue.
+        //
+        //the binding to particular receptors, and the background retention of unselected nodes, stops info being lost.
+        //what if we bound to a particular element in an array? then only that particular element would be subject to replacement, easy.
+        //
+        //how about if, within an array, there were elements we only wanted to partially bind to? 
+        //depends on the selection - if selection were of everything, everything would be given to the lossy conversion
+        //but if we were more particular: select only the first array element, and then only certain properties in it... then all other surrounding tokens would be 
+        //passed through, hurrah.
+        //-------
+        //
+        //background retention must involve a buffer of tokens... pref in a memorystream for input/output memory management(???)
+        //the buffer would increasingly fill up with tokens seen, unfiltered. in filtering, another buffer of 'bound' TokenSpans would refer to this buffer.
+        //when the bound TokenSpans had not just been read, but also re-emitted, then the span of tokens up to that point could then be emitted, and the memory freed.
+        //
+        //if we weren't re-emitting, then we'd have no need to keep any of this around. We want two separate stacks then, two separate arrangements.
+        //The first would just do one-way reads. This would involve the filter still, to produce bound TokenSpans to be interpreted; but there'd be no secondary
+        //system of underlying token buffers and a re-emitting driver.
+        //
+        //SO: first of all we want to do simple reads, via the filter. The filtered TokenSpans will be provided one-by-one to the driver, and so we don't need
+        //no fancy memory-management, as nothing will be persisted to the heap. All is served up immediately.
+        //The Filter outputs TokenSpans. 
+
+        //A TokenSpan, however, would be no good for re-emitting if it were only a Span<Token>...
+        //it'd have to be Memory<Token>, then?
+        //but wrapping in Memory forces the underlying storage to be array based - can't therefore operate on unsafe memory, as we can with spans
+        //but that's perhaps reasonable - 
+
+        //ReadOnlyMemory would be needed for reading from strings
+        //why would the memory need to be mutated anyway? nothing read would be changed... we'd just skip bound TokenSpans oneby one, or rather in the emitting we would do.
+        //so, yes, all we'd ever need to do would be to read the Tokens, with their underlying Spans too (which will probs themselves need to be Memories)
+        //hmmm Memory<> has 'significant performance penalties' - each wrapping incurs the wrath of the GC. TokenSpans should then be our own thing. They can live as addresses of an underlying buffer.
+        //spans a re basically a way to treat ArraySegments as strings
