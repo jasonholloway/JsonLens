@@ -3,23 +3,13 @@ using System.Collections.Generic;
 
 namespace JsonLens.Test
 {
-    using Result = ValueTuple<Status, int, Mode?>;
-
-
+    using Result = ValueTuple<Status, int, (Token, int, int)?>;
+    
     public static class Tokenizer
     {
-        public static (Status, int) Read(ref Context x)
+        public static Result Read(ref Context x)
         {
-            var (status, chars, mode) = Tokenize(ref x);
-            
-            switch (status)
-            {
-                case Status.Ok:
-                    x.Mode = mode.Value;
-                    break;
-            }
-
-            return (status, chars);
+            return Tokenize(ref x);
         }
 
 
@@ -40,83 +30,89 @@ namespace JsonLens.Test
             switch(x.Mode)
             {
                 case Mode.Line:
-                    if(x.Span[0] == 0)
-                        return Ok(Mode.End);
+                    if (x.Current == 0) {
+                        x.Switch(Mode.End);
+                        return Ok();
+                    }
                     else {
-                        x.Emit(Token.Line);
                         x.Push(Mode.LineEnd);
-                        return Ok(Mode.Value);
+                        x.Switch(Mode.Value);
+                        return Ok(Token.Line);
                     }
 
                 case Mode.LineEnd:
-                    if (x.Span[0] == 0)
-                        return Ok(Mode.End);
+                    if (x.Current == 0) {
+                        x.Switch(Mode.End);
+                        return Ok();
+                    }
 
                     throw new NotImplementedException("Handle line break?");
 
                 case Mode.End:
-                    x.Emit(Token.End);
                     return End;
 
                 case Mode.Value:
-                    switch(x.Span[0]) {
+                    switch(x.Current) {
                         case '"':
-                            x.Emit(Token.String);
-                            return Ok(1, Mode.String);
-
+                            x.Switch(Mode.String);
+                            return Ok(1, Token.String);
+                            
                         case char c when IsNumeric(c):
                             return ReadNumber(ref x);
 
                         case '{':
-                            x.Emit(Token.Object);
-                            return Ok(1, Mode.Object);
+                            x.Switch(Mode.Object);
+                            return Ok(1, Token.Object);
 
                         case '[':
-                            x.Emit(Token.Array);
-                            return Ok(1, Mode.Array);
+                            x.Switch(Mode.Array);
+                            return Ok(1, Token.Array);
                     }
                     break;
 
                 case Mode.Object:
-                    switch (x.Span[0]) {
+                    switch (x.Current) {
                         case '}':
-                            x.Emit(Token.ObjectEnd);
-                            return Ok(1, x.Pop());
+                            x.Pop();
+                            return Ok(1, Token.ObjectEnd);
 
                         case '"':
-                            x.Emit(Token.String);
                             x.Push(Mode.ObjectSeparator);
-                            return Ok(1, Mode.String);
+                            x.Switch(Mode.String);
+                            return Ok(1, Token.String);
                     }
                     break;
                 
                 case Mode.ObjectSeparator:
-                    switch(x.Span[0]) {
+                    switch(x.Current) {
                         case ':':
                             x.Push(Mode.Object);
-                            return Ok(1, Mode.Value);
+                            x.Switch(Mode.Value);
+                            return Ok(1);
                     }
                     break;
 
                 case Mode.Array:
-                    switch(x.Span[0]) {
+                    switch(x.Current) {
                         case ']':
-                            x.Emit(Token.ArrayEnd);
-                            return Ok(1, x.Pop());
+                            x.Pop();
+                            return Ok(1, Token.ArrayEnd);
 
                         default:
                             x.Push(Mode.ArrayTail);
-                            return Ok(Mode.Value);
+                            x.Switch(Mode.Value);
+                            return Ok();
                     }
 
                 case Mode.ArrayTail:
-                    switch (x.Span[0]) {
+                    switch (x.Current) {
                         case ']':
-                            x.Emit(Token.ArrayEnd);
-                            return Ok(1, x.Pop());
+                            x.Pop();
+                            return Ok(1, Token.ArrayEnd);
 
                         case ',':
-                            return Ok(1, Mode.Array);
+                            x.Switch(Mode.Array);
+                            return Ok(1);
                     }
                     break;
 
@@ -134,8 +130,8 @@ namespace JsonLens.Test
             {
                 if (!IsNumeric(x.Span[i]))
                 {
-                    x.Emit(Token.Number, 0, i);
-                    return Ok(i, x.Pop());
+                    x.Pop();
+                    return Ok(i, (Token.Number, 0, i));
                 }
             }
 
@@ -155,12 +151,12 @@ namespace JsonLens.Test
                         break;
 
                     case '"':
-                        x.Emit(Token.StringEnd, 0, i);
-                        return Ok(i + 1, x.Pop());
+                        x.Pop();
+                        return Ok(i + 1, (Token.StringEnd, 0, i));
                 }
             }
 
-            x.Emit(Token.StringPart, 0, i);  //but only if i > 1...!
+            //x.Emit(Token.StringPart, 0, i);  //but only if i > 1...!
             return Underrun;
         }
 
@@ -174,7 +170,7 @@ namespace JsonLens.Test
                     break;
             }
 
-            return Ok(i, x.Mode);
+            return Ok(i);
         }
 
         
@@ -184,12 +180,19 @@ namespace JsonLens.Test
         static bool IsWhitespace(char c)
             => c == ' '; //more to add!
 
+        
+        static Result Ok(Token token)
+            => Ok((token, 0, 0));
 
-        static Result Ok(Mode next)
-            => (Status.Ok, 0, next);
+        static Result Ok((Token, int, int) token)
+            => Ok(0, token);
+        
+        static Result Ok(int chars = 0, (Token, int, int)? token = null)
+            => (Status.Ok, chars, token);
 
-        static Result Ok(int charsRead, Mode next)
-            => (Status.Ok, charsRead, next);
+        static Result Ok(int chars, Token token)
+            => Ok(chars, (token, 0, 0));
+        
 
         static Result Underrun
             => (Status.Underrun, 0, null);
@@ -204,19 +207,20 @@ namespace JsonLens.Test
         public ref struct Context
         {
             public ReadOnlySpan<char> Span;
-            public int Index;
             public Stack<Mode> ModeStack;
             public List<(Token, (int, int))> Output;
             public Mode Mode;
 
-            public Context(ReadOnlySpan<char> span, int index, Mode mode)
+            public Context(ReadOnlySpan<char> span, Mode mode)
             {
                 Span = span;
-                Index = index;
                 ModeStack = new Stack<Mode>();
                 Output = new List<(Token, (int, int))>();
                 Mode = mode;
             }
+
+            public char Current => Span[0];
+
 
             public Status? Check(char c)
             {
@@ -231,23 +235,21 @@ namespace JsonLens.Test
                 return null;
             }
 
-            public void Skip(int count)
-            {
-                Index += count;
-            }
+            public void Switch(Mode mode)
+                => Mode = mode;
 
             public void Push(Mode mode)
                 => ModeStack.Push(mode);
 
-            public Mode Pop()
-                => ModeStack.Pop();
+            public void Pop()
+                => Switch(ModeStack.Pop());
 
 
-            public void Emit(Token token)
-                => Output.Add((token, (Index, 0)));
+            //public void Emit(Token token)
+            //    => Output.Add((token, (0, 0)));
 
-            public void Emit(Token token, int from, int len)
-                => Output.Add((token, (Index + from, len)));
+            //public void Emit(Token token, int from, int len)
+            //    => Output.Add((token, (from, len)));
 
         }
 

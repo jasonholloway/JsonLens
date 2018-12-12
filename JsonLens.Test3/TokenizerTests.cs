@@ -13,9 +13,7 @@ namespace JsonLens.Test
         [Fact]
         public void Empty()
             => Tokenize("")
-                .ShouldBe(new[] {
-                    (Token.End, "")
-                });
+                .ShouldBeEmpty();
 
         [Fact]
         public void OpenCloseEnd()
@@ -23,8 +21,7 @@ namespace JsonLens.Test
                 .ShouldBe(new[] {
                     (Token.Line, ""),
                     (Token.Object, ""),
-                    (Token.ObjectEnd, ""),
-                    (Token.End, "")
+                    (Token.ObjectEnd, "")
                 });
 
         [Fact]
@@ -33,8 +30,7 @@ namespace JsonLens.Test
                 .ShouldBe(new[] {
                     (Token.Line, ""),
                     (Token.String, ""),
-                    (Token.StringEnd, "Hello!!!"),
-                    (Token.End, "")
+                    (Token.StringEnd, "Hello!!!")
                 });
 
         [Fact]
@@ -44,7 +40,6 @@ namespace JsonLens.Test
                     (Token.Line, ""),
                     (Token.String, ""),
                     (Token.StringEnd, "Bl\\\"ah"), //BUT!!! the escape needs decoding in the reading...
-                    (Token.End, "")
                 });
 
         [Fact]
@@ -53,8 +48,7 @@ namespace JsonLens.Test
                 .ShouldBe(new[] {
                     (Token.Line, ""),
                     (Token.String, ""),
-                    (Token.StringEnd, "Oi\\"),
-                    (Token.End, "")
+                    (Token.StringEnd, "Oi\\")
                 });
 
         [Fact]
@@ -63,8 +57,7 @@ namespace JsonLens.Test
                 .ShouldBe(new[] {
                     (Token.Line, ""),
                     (Token.String, ""),
-                    (Token.StringEnd, "  Boo!"),
-                    (Token.End, "")
+                    (Token.StringEnd, "  Boo!")
                 });
 
         [Fact]
@@ -77,8 +70,7 @@ namespace JsonLens.Test
                     (Token.StringEnd, "wibble"),
                     (Token.String, ""),
                     (Token.StringEnd, "blah"),
-                    (Token.ObjectEnd, ""),
-                    (Token.End, "")
+                    (Token.ObjectEnd, "")
                 });
 
         [Fact]
@@ -86,8 +78,7 @@ namespace JsonLens.Test
             => Tokenize("1234")
                 .ShouldBe(new[] {
                     (Token.Line, ""),
-                    (Token.Number, "1234"),
-                    (Token.End, "")
+                    (Token.Number, "1234")
                 });
 
         [Fact]
@@ -101,8 +92,7 @@ namespace JsonLens.Test
                     (Token.Number, "3"),
                     (Token.String, ""),
                     (Token.StringEnd, "hello"),
-                    (Token.ArrayEnd, ""),
-                    (Token.End, "")
+                    (Token.ArrayEnd, "")
                 });
 
         [Fact]
@@ -118,8 +108,7 @@ namespace JsonLens.Test
                     (Token.ArrayEnd, ""),
                     (Token.Array, ""),
                     (Token.ArrayEnd, ""),
-                    (Token.ArrayEnd, ""),
-                    (Token.End, "")
+                    (Token.ArrayEnd, "")
                 });
 
 
@@ -131,35 +120,75 @@ namespace JsonLens.Test
                 => Tokenize(" 123   ")
                     .ShouldBe(new[] {
                         (Token.Line, ""),
-                        (Token.Number, "123"),
-                        (Token.End, "")
+                        (Token.Number, "123")
                     });
 
         }
 
+
+        public static object Run(ref CursorContext x)
+        {
+            var y = x.TokenizerContext;
+            var input = "BlahBlahBlah";
+
+            var output = new List<(Token, string)>();
+
+            while (true)
+            {
+                var (status, chars, emitted) = Tokenizer.Read(ref x.TokenizerContext);
+
+                switch (status)
+                {
+                    case Status.Ok:
+                        if (emitted.HasValue)
+                        {
+                            var (token, from, to) = emitted.Value;
+                            output.Add((token, input.Substring(from, to)));
+                        }
+
+                        y.Span = y.Span.Slice(chars);
+                        break;
+
+                    case Status.End:
+                        return output.ToArray();
+
+                    case Status.Underrun:
+                        throw new NotImplementedException("UNDERRUN");
+
+                    case Status.BadInput:
+                        throw new NotImplementedException("BADINPUT");
+                }
+            }
+        }
+
+
+
         static (Token, string)[] Tokenize(string input)
         {
-            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan(), 0, Mode.Line);
+            var output = new List<(Token, string)>();
+            int offset = 0;
+
+            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan(), Mode.Line);
 
             while (true)
             {
-                var (status, charsRead) = Tokenizer.Read(ref x);
+                var (status, chars, emitted) = Tokenizer.Read(ref x);
 
                 switch (status)
                 {
                     case Status.Ok:
-                        x.Span = x.Span.Slice(charsRead);
-                        x.Index += charsRead;
+                        if (emitted.HasValue)
+                        {
+                            var (token, from, length) = emitted.Value;
+                            output.Add((token, input.Substring(offset + from, length)));
+                        }
+                        
+                        x.Span = x.Span.Slice(chars);
+                        offset += chars;
                         break;
 
                     case Status.End:
-                        return x.Output
-                                .Select(emitted =>
-                                {
-                                    var (token, (start, len)) = emitted;
-                                    return (token, input.Substring(start, len));
-                                })
-                                .ToArray();
+                        return output.ToArray();
 
                     case Status.Underrun:
                         throw new NotImplementedException("UNDERRUN");
@@ -170,55 +199,6 @@ namespace JsonLens.Test
             }
 
         }
-    }
-
-    public static class TestCursor
-    {        
-        public static object Run(string input)
-        {
-            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan(), 0, Mode.Line);
-
-            while (true)
-            {
-                var (status, charsRead) = Tokenizer.Read(ref x);
-
-                switch (status)
-                {
-                    case Status.Ok:
-                        x.Span = x.Span.Slice(charsRead);
-                        x.Index += charsRead;
-                        break;
-
-                    case Status.End:
-                        return x.Output
-                                .Select(emitted =>
-                                {
-                                    var (token, (start, len)) = emitted;
-                                    return (token, input.Substring(start, len));
-                                })
-                                .ToArray();
-
-                    case Status.Underrun:
-                        throw new NotImplementedException("UNDERRUN");
-
-                    case Status.BadInput:
-                        throw new NotImplementedException("BADINPUT");
-                }
-            }
-        }
-
-    }
-
-
-    public class CursorTests
-    {
-        [Fact]
-        public void Blah()
-        {
-
-        }
-
-
     }
 
 
@@ -387,27 +367,28 @@ namespace JsonLens.Test
         public static object Run(ref CursorContext x)
         {
             var y = x.TokenizerContext;
-            var input = "hello!";
+            var input = "BlahBlahBlah";
+
+            var output = new List<(Token, string)>();
 
             while (true)
             {
-                var (status, charsRead) = Tokenizer.Read(ref x.TokenizerContext);
-        
+                var (status, chars, emitted) = Tokenizer.Read(ref x.TokenizerContext);
+
                 switch (status)
                 {
                     case Status.Ok:
-                        y.Span = y.Span.Slice(charsRead);
-                        y.Index += charsRead;
+                        if (emitted.HasValue)
+                        {
+                            var (token, from, to) = emitted.Value;
+                            output.Add((token, input.Substring(from, to)));
+                        }
+
+                        y.Span = y.Span.Slice(chars);
                         break;
 
                     case Status.End:
-                        return y.Output
-                                .Select(emitted =>
-                                {
-                                    var (token, (start, len)) = emitted;
-                                    return (token, input.Substring(start, len));
-                                })
-                                .ToArray();
+                        return output.ToArray();
 
                     case Status.Underrun:
                         throw new NotImplementedException("UNDERRUN");
