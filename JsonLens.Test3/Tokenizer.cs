@@ -6,14 +6,8 @@ namespace JsonLens.Test
     using Result = ValueTuple<Status, int, (Token, int, int)?>;
     
     public static class Tokenizer
-    {
-        public static Result Read(ref Context x)
-        {
-            return Tokenize(ref x);
-        }
-
-
-        static Result Tokenize(ref Context x)
+    {        
+        public static Result Next(ref Context x)
         {
             if(x.Span.Length == 0) { //should just try reading, surely...
                 return Underrun;

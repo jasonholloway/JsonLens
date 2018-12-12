@@ -9,9 +9,9 @@ namespace JsonLens.Test3
     
     public static class Reader
     {
-        public static Result Read(ref Context x)
+        public static Result Next(ref Context x)
         {
-            var (status, chars, token) = Tokenizer.Read(ref x.TokenizerContext);
+            var (status, chars, emitted) = Tokenizer.Next(ref x.TokenizerContext);
 
             switch(status)
             {

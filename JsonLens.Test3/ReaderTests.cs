@@ -46,7 +46,7 @@ namespace JsonLens.Test
             
             while(true)
             {
-                var (status, chars) = Reader.Read(ref x);
+                var (status, chars) = Reader.Next(ref x);
              
                 switch(status)
                 {

@@ -135,7 +135,7 @@ namespace JsonLens.Test
 
             while (true)
             {
-                var (status, chars, emitted) = Tokenizer.Read(ref x.TokenizerContext);
+                var (status, chars, emitted) = Tokenizer.Next(ref x.TokenizerContext);
 
                 switch (status)
                 {
@@ -172,7 +172,7 @@ namespace JsonLens.Test
 
             while (true)
             {
-                var (status, chars, emitted) = Tokenizer.Read(ref x);
+                var (status, chars, emitted) = Tokenizer.Next(ref x);
 
                 switch (status)
                 {
@@ -373,7 +373,7 @@ namespace JsonLens.Test
 
             while (true)
             {
-                var (status, chars, emitted) = Tokenizer.Read(ref x.TokenizerContext);
+                var (status, chars, emitted) = Tokenizer.Next(ref x.TokenizerContext);
 
                 switch (status)
                 {
