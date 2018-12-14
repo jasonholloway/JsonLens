@@ -168,7 +168,9 @@ namespace JsonLens.Test
             var output = new List<(Token, string)>();
             int offset = 0;
 
-            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan(), Mode.Line);
+            var x = new Tokenizer.Context(
+                            input.AsZeroTerminatedSpan(),
+                            Tokenizer.Mode.Line);
 
             while (true)
             {

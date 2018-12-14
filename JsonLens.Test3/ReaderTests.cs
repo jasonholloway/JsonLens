@@ -34,8 +34,14 @@ namespace JsonLens.Test
                     });
         }
 
-
-
+        public class SelectNone
+        {
+            [Fact]
+            public void SimpleString()
+                => Read("\"wibble\"", Select.None)
+                    .ShouldBeEmpty();
+        }
+               
         public class SelectProp
         {
             [Fact]
@@ -51,7 +57,9 @@ namespace JsonLens.Test
         static (Token, string)[] Read(string json, Selector selector)
         {
             var x = new Reader.Context(
-                        new Tokenizer.Context(json.AsZeroTerminatedSpan(), Mode.Line), 
+                        new Tokenizer.Context(
+                            json.AsZeroTerminatedSpan(), 
+                            Tokenizer.Mode.Line), 
                         selector.GetRoot());
 
             var output = new List<(Token, string)>();
@@ -85,82 +93,6 @@ namespace JsonLens.Test
                 }
             }
         }
-
-
-
-        public static class Select
-        {
-            public static AllSelector All
-                => new AllSelector(null);
-
-            public static ValueSelector Value
-                => new ValueSelector(null);
-        }
-
-        
-        public abstract class Selector
-        {
-            Selector _parent;
-            List<Selector> _children = new List<Selector>();
-
-            public Selector(Selector parent)
-            {
-                _parent = parent;
-            }
-
-            internal IEnumerable<Selector> Children => _children;
-
-            protected S Add<S>(S child) where S : Selector
-            {
-                _children.Add(child);
-                return child;
-            }
-
-            internal Selector GetRoot()
-                => _parent != null
-                    ? _parent.GetRoot()
-                    : this;
-
-            public AllSelector All
-                => Add(new AllSelector(this));
-        }
-
-
-
-        public class ValueSelector : Selector
-        {
-            public ValueSelector(Selector parent) : base(parent)
-            { }
-
-            public ObjectSelector Object
-                => Add(new ObjectSelector(this));
-        }
-
-        public class ObjectSelector : Selector
-        {
-            public ObjectSelector(Selector parent) : base(parent)
-            { }
-
-            public PropSelector Prop(string name)
-                => Add(new PropSelector(this, name));
-        }
-
-        public class PropSelector : Selector
-        {
-            public readonly string Name;
-
-            public PropSelector(Selector parent, string name) : base(parent)
-            {
-                Name = name;
-            }
-        }
-
-        public class AllSelector : Selector
-        {
-            public AllSelector(Selector parent) : base(parent)
-            { }
-        }
-
 
     }
 

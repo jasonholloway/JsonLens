@@ -10,22 +10,50 @@ namespace JsonLens.Test3
     
     public static class Reader
     {
+        public enum Mode
+        {
+            Seek,
+            Read,
+            Skip
+        }
+               
         public static Result Next(ref Context x)
         {
-            switch(x.Selector)
+            switch(x.Mode)
             {
-                case AllSelector s:
+                case Mode.Seek:
+                    switch (x.Select.Strategy)
+                    {
+                        case Match.None:
+                            //Enter skip mode till... when? Till we've popped out of our current depth; then we go back to seeking
+                            x.Mode = Mode.Skip;
+                            return (Status.Ok, 0, null);
+
+                        case Match.All:
+                            //like skip, we have to put place a condition for popping out
+                            x.Mode = Mode.Read;
+                            return (Status.Ok, 0, null);
+
+                        case Match.Object:
+                            //we're after an object mate: read forwards till we find it OR we know we've failed in our search
+                            throw new NotImplementedException();
+
+                        case Match.Prop:
+                            throw new NotImplementedException();
+
+                        case Match.Value:
+                            throw new NotImplementedException();
+                    }
                     throw new NotImplementedException();
 
-                case ObjectSelector s:
+                case Mode.Skip:
                     throw new NotImplementedException();
 
-                case PropSelector s:
-                    throw new NotImplementedException();
-
-                case ValueSelector s:
+                case Mode.Read:
                     throw new NotImplementedException();
             }
+
+
 
             //if we're told to let all through, we should do, up till we escape the current json scope
             //so, we need the measure of depth: then we know to skip till our depth pops us back out - a v. fast manoevre.
@@ -54,13 +82,15 @@ namespace JsonLens.Test3
 
         public ref struct Context
         {
-            public Tokenizer.Context TokenizerContext;
-            public Selector Selector;
+            public Tokenizer.Context TokenizerContext;                       
+            public Mode Mode;
+            public SelectNode Select;
             
-            public Context(Tokenizer.Context tokenizerContext, Selector selector)
+            public Context(Tokenizer.Context tokenizerContext, SelectNode select)
             {
                 TokenizerContext = tokenizerContext;
-                Selector = selector;
+                Select = select;
+                Mode = Mode.Seek;
             }
 
         }

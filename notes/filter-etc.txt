@@ -1,0 +1,39 @@
+
+So we got our stream of tokens
+
+Then the Lens part of the lib will be in filtering this stream...
+
+No storage of gleaned parts is needed, just a contextualised cursor; its the prospect of a proper set of data - that'swhat we're providing
+
+------
+
+Question then over whether we wanna prioritise the filterin' or the emboyin'
+
+the filterin requires a cursor, and presumably with a context
+
+if we have a cursor, then we should have some way of peeking into its data
+
+can we afford such an expense? doubtful... 
+
+i mean, in the scheme of things its miniscule, but it kills the spirit of things, dunnit?
+
+the same goes though for the stream of tokens - we don't want these to be actually output, surely (well, actually we do... they will always be emitted into a buffer)
+
+so if we have a buffer for tokens, could we have a buffer for contexts? perhaps
+
+------------------
+
+
+The filter canbe used in reading very obviously
+
+
+
+
+
+
+
+
+
+
+
+

@@ -238,15 +238,23 @@ namespace JsonLens.Test
             public void Pop()
                 => Switch(ModeStack.Pop());
 
-
-            //public void Emit(Token token)
-            //    => Output.Add((token, (0, 0)));
-
-            //public void Emit(Token token, int from, int len)
-            //    => Output.Add((token, (from, len)));
-
         }
 
+        public enum Mode : byte
+        {
+            Line,
+            Object,
+            Array,
+            Value,
+            String,
+            ObjectKey,
+            ObjectValue,
+            Number,
+            LineEnd,
+            End,
+            ObjectSeparator,
+            ArrayTail
+        }
     }
 
     public enum Status : byte
@@ -274,22 +282,6 @@ namespace JsonLens.Test
         False,
         Undefined,
         Null
-    }
-
-    public enum Mode : byte
-    {
-        Line,
-        Object,
-        Array,
-        Value,
-        String,
-        ObjectKey,
-        ObjectValue,
-        Number,
-        LineEnd,
-        End,
-        ObjectSeparator,
-        ArrayTail
     }
 
 }

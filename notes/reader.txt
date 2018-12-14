@@ -1,0 +1,133 @@
+Reader
+
+if in SkipMode,
+we need some condition to skip /till/
+
+this condition will (I think) always be one of depth
+we start skipping at a certain point, and we resume our openness to capture when we pop back out the other side
+
+in the case of Props, we would parse all the way to the Prop before consulting the selector?
+
+As it so happens, for purposes of compaction, the Tokenizer signifies Props only implicitly
+which passes a burden of interpretation up the stack; and so more modes are involved in the reader and the binder too...
+
+we should give it a go as is, as the effect might not be as great as we fear; though we should keep this countervailing thought sizzling in the background of course
+
+--------
+
+So the Reader needs its modes... 
+
+SkipMode will be one: in SkipMode, we will want to set a SkipTo depth register
+- but skipping in itself requires a transcendence above the faff of token iteration; ie a preliminary layer is signposted
+
+the skip handler would detect its own token classes, and go up and down em as it wished
+this'd be distinct from the alternate approach of detecting the token first then the mode: the mode should be the first branch
+
+Would we need the depth detection elsewhere? If so, itmight be possible to delegate to a submethod
+
+-------
+
+We start off in MatchMode: we find ourselves with an untraversed stream of tokens ahead of us; and a tree of selectors as yet unclimbed.
+
+So, first of all, we are confronted with a Token. We have to interpret the given token into our world. We have to be aware of our interpretative mode even at this point?
+At every read from below, unless we are to risk retries on underruns (actually not too common given good buffering)
+we're to encode our state and trampoline back up
+but there's some driving that can be done by ourselves at our current layer. As long as we code things so that we don't leave mismatched state in place
+and the ease of testing should prove to us that we haven't done so
+
+So - if modality is to be mostly handled within the specialised handlers, we can break things down like so:
+
+SeekMode: we're looking for something to select
+SkipMode: we're running through till our currently skipped subject is passed
+ReadMode: like SkipMode, except we're passing tokens up till we pass the node
+
+--------
+
+Given SeekMode, we firstly need to know what we're looking for; and secondly we need to look for it.
+
+----
+
+So, we find ourselves suddenly in SeekMode; we check the Selector and we find we're supposed to select None (which appears as a kind of special case here)
+really, the NoneSelector would just be an absence...
+
+It's like the selectors are misstructured: there should be a single Selector type, in which sit different SelectionStrategies
+
+Then, there'd be an empty Selector, and we therefore would select none.
+
+---------
+
+We've misconceived here: Selectors run in parallel, not series; it's not a case of matching one, then another, then another
+we have to be matching against all the possibilities of our current situation
+
+The third part of the strategic context has now been uncovered: the type of node!
+Or even: our path in the tree.
+
+Selectors are to be matched against where we are; what we have in front of us
+- not the token in front of us
+
+There's a preliminary interpretation of the tokens
+Though the tokenizer can't itself do the interpretation, as we want the raw token stream also
+
+We need... <shock!> a parser, that builds paths for us as it goes through.
+Every new prop encountered adds its name to the full path
+
+But, if we're on about skipping remorselessly, we don't need the paths we don't care about
+all we need are the paths we /do/ care about.
+if we care about the child we must care about the parent, and so, if we care about where we are (ie we're in SeekMode) we should always have a path in the context
+
+Such a path would have to be in a Stack, pushed into and popped from
+the PathStack would be full of - what? MVP normal strings: though a more efficient implementation can be imagined via a buffer
+it can't just be Spans, as the tokens of the root props may be long flushed out of memory
+so the choice we have here is between inscribing into an extensible buffer, and just using String (easier, quicker, moving beyond this impl would be opportunity for measurement!)
+
+So, the Reader does its own Path-building, but only when in SeekMode. When in SkipMode and ReadMode, it just keeps tabs on depth.
+
+----------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
