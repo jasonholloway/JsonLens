@@ -12,10 +12,9 @@ namespace JsonLens.Test
         public class SelectAll
         {
             [Fact]
-            public void SimpleString_SelectAll()
+            public void SimpleString()
                 => Read("\"Hello!!!\"", Select.All)
                     .ShouldBe(new[] {
-                        (Token.Line, ""),
                         (Token.String, ""),
                         (Token.StringEnd, "Hello!!!")
                     });
@@ -24,7 +23,6 @@ namespace JsonLens.Test
             public void ObjectWithProperty()
                 => Read("{\"wibble\":\"blah\"}", Select.All)
                     .ShouldBe(new[] {
-                        (Token.Line, ""),
                         (Token.Object, ""),
                         (Token.String, ""),
                         (Token.StringEnd, "wibble"),

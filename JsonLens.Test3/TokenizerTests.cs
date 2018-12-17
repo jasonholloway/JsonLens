@@ -19,7 +19,6 @@ namespace JsonLens.Test
         public void OpenCloseEnd()
             => Tokenize("{}")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.Object, ""),
                     (Token.ObjectEnd, "")
                 });
@@ -28,7 +27,6 @@ namespace JsonLens.Test
         public void SimpleString()
             => Tokenize("\"Hello!!!\"")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.String, ""),
                     (Token.StringEnd, "Hello!!!")
                 });
@@ -37,7 +35,6 @@ namespace JsonLens.Test
         public void SimpleString_WithEscapedQuote()
             => Tokenize(@"""Bl\""ah""")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.String, ""),
                     (Token.StringEnd, "Bl\\\"ah"), //BUT!!! the escape needs decoding in the reading...
                 });
@@ -46,7 +43,6 @@ namespace JsonLens.Test
         public void SimpleString_WithEscapedEscape()
             => Tokenize("\"Oi\\\"")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.String, ""),
                     (Token.StringEnd, "Oi\\")
                 });
@@ -55,7 +51,6 @@ namespace JsonLens.Test
         public void SimpleString_WithSpaceAtStart()
             => Tokenize("\"  Boo!\"")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.String, ""),
                     (Token.StringEnd, "  Boo!")
                 });
@@ -64,7 +59,6 @@ namespace JsonLens.Test
         public void ObjectWithProperty()
             => Tokenize("{\"wibble\":\"blah\"}")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.Object, ""),
                     (Token.String, ""),
                     (Token.StringEnd, "wibble"),
@@ -77,7 +71,6 @@ namespace JsonLens.Test
         public void SimpleNumber()
             => Tokenize("1234")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.Number, "1234")
                 });
 
@@ -85,7 +78,6 @@ namespace JsonLens.Test
         public void ArrayWithValues()
             => Tokenize("[1,2,3,\"hello\"]")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.Array, ""),
                     (Token.Number, "1"),
                     (Token.Number, "2"),
@@ -99,7 +91,6 @@ namespace JsonLens.Test
         public void NestedArrays()
             => Tokenize("[1,[2,3],[]]")
                 .ShouldBe(new[] {
-                    (Token.Line, ""),
                     (Token.Array, ""),
                     (Token.Number, "1"),
                     (Token.Array, ""),
@@ -119,7 +110,6 @@ namespace JsonLens.Test
             public void AroundNumber()
                 => Tokenize(" 123   ")
                     .ShouldBe(new[] {
-                        (Token.Line, ""),
                         (Token.Number, "123")
                     });
 

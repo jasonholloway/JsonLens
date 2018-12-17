@@ -31,7 +31,7 @@ namespace JsonLens.Test
                     else {
                         x.Push(Mode.LineEnd);
                         x.Switch(Mode.Value);
-                        return Ok(Token.Line);
+                        return Ok();
                     }
 
                 case Mode.LineEnd:
@@ -268,7 +268,6 @@ namespace JsonLens.Test
     public enum Token : byte
     {
         End,
-        Line,
         Comment,
         Object,
         ObjectEnd,
