@@ -55,9 +55,7 @@ namespace JsonLens.Test
         static (Token, string)[] Read(string json, Selector selector)
         {
             var x = new Reader.Context(
-                        new Tokenizer.Context(
-                            json.AsZeroTerminatedSpan(), 
-                            Tokenizer.Mode.Line), 
+                        new Tokenizer.Context(json.AsZeroTerminatedSpan()), 
                         selector.GetSelectTree());
 
             var output = new List<(Token, string)>();

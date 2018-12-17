@@ -205,12 +205,12 @@ namespace JsonLens.Test
             public List<(Token, (int, int))> Output;
             public Mode Mode;
 
-            public Context(ReadOnlySpan<char> span, Mode mode)
+            public Context(ReadOnlySpan<char> span)
             {
                 Span = span;
                 ModeStack = new Stack<Mode>();
                 Output = new List<(Token, (int, int))>();
-                Mode = mode;
+                Mode = Mode.Line;
             }
 
             public char Current => Span[0];
