@@ -1,0 +1,8 @@
+TODO
+
+- Local iteration in handler
+  this is already done by the tokenizer zooming forwards through strings...
+  the Reader should be able to do this also
+  at the cost of some local index management
+  but for now,just yield to the driver...
+  

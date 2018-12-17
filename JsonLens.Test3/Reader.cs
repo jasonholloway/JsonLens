@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using static JsonLens.Test.ReaderTests;
 
 namespace JsonLens.Test3
 {
@@ -27,12 +26,14 @@ namespace JsonLens.Test3
                         case Match.None:
                             //Enter skip mode till... when? Till we've popped out of our current depth; then we go back to seeking
                             x.Mode = Mode.Skip;
-                            return (Status.Ok, 0, null);
+                            x.MoveTill = x.Depth - 1;
+                            return Ok();
 
                         case Match.All:
                             //like skip, we have to put place a condition for popping out
                             x.Mode = Mode.Read;
-                            return (Status.Ok, 0, null);
+                            x.MoveTill = x.Depth - 1;
+                            return Ok();
 
                         case Match.Object:
                             //we're after an object mate: read forwards till we find it OR we know we've failed in our search
@@ -47,50 +48,84 @@ namespace JsonLens.Test3
                     throw new NotImplementedException();
 
                 case Mode.Skip:
-                    throw new NotImplementedException();
+                    if(x.Depth != x.MoveTill) {
+                        return SuppressNextToken(ref x);    //drive locally: no data to accumulate, just cursor to increment
+                    }
+                    else {
+                        x.Mode = Mode.Seek;
+                        return Ok();
+                    }
 
                 case Mode.Read:
+                    //pass through the results of the tokenizer to the driver, please
+                    //but only if we're still in-depth
                     throw new NotImplementedException();
+
+                default:
+                    throw new Exception("Strange Reader.Mode encountered!");
+            }
+            
+            //BEWARE state changing in the event of an underrun - that'll need to change
+            //******************************
+        }
+
+        static Result SuppressNextToken(ref Context x)
+        {
+            var (status, chars, _) = NextToken(ref x);
+            return (status, chars, null);
+        }
+
+        static Result NextToken(ref Context x)
+        {
+            var (status, chars, emitted) = Tokenizer.Next(ref x.TokenizerContext);
+
+            if(status == Status.Ok && emitted.HasValue) { 
+                var (token, _, _) = emitted.Value;
+                x.Depth += GetDepthChange(token);
             }
 
-
-
-            //if we're told to let all through, we should do, up till we escape the current json scope
-            //so, we need the measure of depth: then we know to skip till our depth pops us back out - a v. fast manoevre.
-            //
-            //if we're looking for an object, we should either take an object if it is here, or we should skip as above
-            //
-            //the act of taking involves changing our context and trampolining out and back in again
-            //(or does it?) we have to return bad statuses if we find them
-            //BEWARE state changing in the event of an underrun - that'll need to change
-            //
-
-            return Tokenizer.Next(ref x.TokenizerContext);
-
-            //var (status, chars, emitted) = Tokenizer.Next(ref x.TokenizerContext);
-
-            //switch(status)
-            //{
-            //    case Status.Ok:
-            //        return (status, chars, emitted);
-
-            //    default:
-            //        throw new NotImplementedException();
-            //}
+            return (status, chars, emitted);
         }
-        
+
+        static int GetDepthChange(Token token)
+        {
+            switch(token)
+            {
+                case Token.Object:
+                    return 1;
+                case Token.ObjectEnd:
+                    return -1;
+
+                case Token.Array:
+                    return 1;
+                case Token.ArrayEnd:
+                    return -1;
+
+                default:
+                    return 0;
+            }
+        }
+
+        static Result Ok()
+            => (Status.Ok, 0, null);
+
+
 
         public ref struct Context
         {
             public Tokenizer.Context TokenizerContext;                       
             public Mode Mode;
             public SelectNode Select;
+            public int Depth;
+            public int MoveTill;
             
             public Context(Tokenizer.Context tokenizerContext, SelectNode select)
             {
                 TokenizerContext = tokenizerContext;
                 Select = select;
                 Mode = Mode.Seek;
+                Depth = 0;
+                MoveTill = 0;
             }
 
         }

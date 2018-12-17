@@ -84,6 +84,24 @@ So, the Reader does its own Path-building, but only when in SeekMode. When in Sk
 
 ----------
 
+A good first step would be to do the depth-tracking mechanism
+depth needs tracking in every mode
+every token that's taken in contributes towards it
+
+it's an intermediate layer, then
+but seems more in the scope of the Reader than anything elsewhere
+but if done in the reader, it will have to be done in multiple places
+
+better I think to have the conceptual separation here
+but not the cost of an entirely distinct layer: just a preliminary switching in the Reader please
+
+
+
+
+
+
+
+
 
 
 

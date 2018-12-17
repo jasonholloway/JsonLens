@@ -60,7 +60,7 @@ namespace JsonLens.Test
                         new Tokenizer.Context(
                             json.AsZeroTerminatedSpan(), 
                             Tokenizer.Mode.Line), 
-                        selector.GetRoot());
+                        selector.GetSelectTree());
 
             var output = new List<(Token, string)>();
             int index = 0;
