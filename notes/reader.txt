@@ -182,6 +182,83 @@ this could be built on at the end though
 
 ---------
 
+the selectors then become a mini-language for parsing
+
+-------------
+
+A problem now:
+
+the selector is in the form of a tree, with a generic edge between the leaves. But the edge is different for different strategies;
+and not all of them lead to multiple sub-strategies. There are three kinds of forking strategies: ObjectProps, ArrayElements and LineElements
+
+ObjectProps matches against a set of substrategies, one for each prop we're interested in
+SubClassing and virtual dispatch seems a reasonable endeavour here
+but what would the subclassed methods call?
+
+they'd have free reign over the ReaderContext, presumably, and access to the Tokenizer
+though the Tokenizer requires close management
+
+either way, different strategies yield up different substrategies
+some strategies could be built in: for instance, Skip and Read
+hmmm I dunno: subclassing gives the illusion of freedom where there is none; each and every strategyhas to be closely entwined in the fabric of the Reader
+
+----------
+
+An ObjectStrategy doesn't do much:
+really it is ObjectProps
+
+though if it is Object.All...
+
+Object takes, and has a single downstream Strategy: Props
+
+Props will somehow include a list of substrategies
+Object enters us into the object, but here we may yet choose All or None
+
+Though Object.None seems pointless.
+And Object.All implies already the potential presence of props
+.All makes no sense except as a modality of Props
+
+
+of course, Anything makes sense in the world of present values
+
+and Object makes sense in that world too... but once you have selected(/parsed) Object, you must be selecting something prop-related
+
+------------
+
+so now I need to delegate to something to be able to match prop names to follow-on strategies
+I need a bag of properties!
+but even better: as I want to support case-insensitive matching and stuff like that, it'd seem better to
+delegate to some other piece of code to do this
+
+a strategy should be a kind of coroutine: we tell it what we've got, it says what we should do
+but, given an object, how could the coroutine return back strategies for each property?
+
+well - the ObjectStrategy would itself yield the PropStrategy(wot?)
+
+an ObjectStrategy would be the next Strategy encountered by SeekMode...
+
+the ObjectStrategy would expect to find an Object; if not, it'd Skip
+and if it found an Object, then it'd happily yield back a PropsStrategy, that'd match based on its set prop names and conventions
+
+but! part of my mission here is to prioritise performance
+using virtuals does imply branching, probably many times over
+we want as much as possible to be inlinable
+
+this then means we want our own Strategy lookup table
+and our strategies need some handy way to store their own state: this implies a kind of context
+
+ultimately we will use the efficient string program approach, but till then...
+
+
+
+
+
+
+
+
+
+
+
 
 
 

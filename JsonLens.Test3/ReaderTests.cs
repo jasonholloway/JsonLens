@@ -13,7 +13,7 @@ namespace JsonLens.Test
         {
             [Fact]
             public void SimpleString()
-                => Read("\"Hello!!!\"", Select.All)
+                => Read("\"Hello!!!\"", Select.Any)
                     .ShouldBe(new[] {
                         (Token.String, ""),
                         (Token.StringEnd, "Hello!!!")
@@ -21,7 +21,7 @@ namespace JsonLens.Test
 
             [Fact]
             public void ObjectWithProperty()
-                => Read("{\"wibble\":\"blah\"}", Select.All)
+                => Read("{\"wibble\":\"blah\"}", Select.Any)
                     .ShouldBe(new[] {
                         (Token.Object, ""),
                         (Token.String, ""),

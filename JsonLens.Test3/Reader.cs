@@ -12,6 +12,7 @@ namespace JsonLens.Test3
         public enum Mode
         {
             Seek,
+            SeekProps,
             Read,
             Skip
         }
@@ -20,15 +21,24 @@ namespace JsonLens.Test3
         {
             switch(x.Mode)
             {
+                case Mode.SeekProps:
+                    //so now I need to delegate to something to be able to match prop names to follow-on strategies
+                    //I need a bag of properties!
+
+
+
+
+                    throw new NotImplementedException();
+
                 case Mode.Seek:
-                    switch (x.Select.Strategy)
+                    switch (x.Select.Match)
                     {
                         case Match.None:
                             x.Mode = Mode.Skip;
                             x.MoveTill = x.Depth - 1;
                             return Ok();
 
-                        case Match.All:
+                        case Match.Any:
                             x.Mode = Mode.Read;
                             x.MoveTill = x.Depth - 1;
                             return Ok();
@@ -44,14 +54,12 @@ namespace JsonLens.Test3
                                 if (token == Token.Object)
                                 {
                                     x.Mode = Mode.Seek;
-
-                                    //having matched on Object opener
-                                    //now we go back to seeking
-                                    //but we, as readers, are in 'Object' mode, in as much as we are now looking at prop names
-                                    //maybe this is in fact a distinct reading mode...
-                                    //we've detected an object, and now we're looking at a PropName
-                                    //if we like the PropName, then we can maybe seek on the PropValue
-                                    //...
+                                    
+                                    //so, now we look for Props...
+                                    //this is indeed a separate reading mode
+                                    //SeekProps
+                                    //and SeekProps requires a compiled map of possible properties, with sub-strategies hanging off em
+                                    //so then such seeking is also a kind of strategy - strategies are shared between modes and matchers, then
 
                                     return (status, chars, emitted);
                                 }

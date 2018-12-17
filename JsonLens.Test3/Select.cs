@@ -4,22 +4,25 @@ namespace JsonLens.Test3
 {
     public static class Select
     {
-        public static AllSelector All
-            => new AllSelector(new SelectNode(null, Match.All));
-
-        public static ObjectSelector Object
-            => new ObjectSelector(new SelectNode(null, Match.Object));
+        public static AllSelector Any
+            => new AllSelector(new SelectNode(null, Match.Any));
 
         public static NoneSelector None
             => new NoneSelector(new SelectNode(null, Match.None));
+
+
+        public static ObjectSelector Object
+            => new ObjectSelector(new SelectNode(null, Match.Object));
     }
 
 
     public enum Match
     {
+        Any,
         None,
-        All,
-        Object,
+
+        Array,
+        Object,     //the object matcher itself should include the prop map - as there's nowhere else to go in such circumstances
         Prop
     }
     
@@ -36,7 +39,7 @@ namespace JsonLens.Test3
             _strategy = strategy;
         }
 
-        internal Match Strategy => _strategy;
+        internal Match Match => _strategy;
         
         internal IEnumerable<SelectNode> Children => _children;
 
@@ -100,7 +103,7 @@ namespace JsonLens.Test3
             => new ObjectSelector(ChildNode(Match.Object));
 
         public AllSelector All
-            => new AllSelector(ChildNode(Match.All));
+            => new AllSelector(ChildNode(Match.Any));
 
         public NoneSelector None
             => new NoneSelector(ChildNode(Match.None));
