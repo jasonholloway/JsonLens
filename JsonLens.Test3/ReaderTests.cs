@@ -40,14 +40,38 @@ namespace JsonLens.Test
                     .ShouldBeEmpty();
         }
                
-        public class SelectProp
+        public class Objects
         {
             [Fact]
-            public void ObjectProp()
+            public void MatchesProp()
                 => Read("{\"hello\":123}", Select.Object.Prop("hello").All)
                     .ShouldBe(new[] {
-                        (Token.Number, "123")
+                        (Token.Object, ""),
+                        (Token.String, "hello"),
+                        (Token.StringEnd, ""),
+                        (Token.Number, "123"),
+                        (Token.ObjectEnd, "")
                     });
+
+            [Fact]
+            public void DoesntMatchProp()
+                => Read("{\"hello\":123}", Select.Object.Prop("nope").All)
+                    .ShouldBe(new[] {
+                        (Token.Object, ""),
+                        (Token.ObjectEnd, "")
+                    });
+
+            [Fact]
+            public void MatchesPropButNotValue()
+                => Read("{\"hello\":123}", Select.Object.Prop("hello").None)
+                    .ShouldBe(new[] {
+                        (Token.Object, ""),
+                        (Token.String, "hello"),
+                        (Token.StringEnd, ""),
+                        (Token.Nothing, ""),
+                        (Token.ObjectEnd, "")
+                    });
+
         }
 
 

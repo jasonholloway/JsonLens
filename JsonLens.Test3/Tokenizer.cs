@@ -280,7 +280,8 @@ namespace JsonLens.Test
         True,
         False,
         Undefined,
-        Null
+        Null,
+        Nothing
     }
 
 }

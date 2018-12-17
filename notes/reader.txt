@@ -169,58 +169,18 @@ that can then be translated to 'undefined' further down the stream
 as such, we shouldn't differentiate between Line and Array. Line doesn't need Line and LineEnd, as its implicitly present in all parsings
 the tokenizer will just emit a concatenation of values, which will be interpreted as lines or array values or whatever
 
+-----------
 
- 
+Small little mode changes at the tokenizer level are currently being yielded back up right to the top
+which is, you know, kinda wasteful
 
+in optimising, we will put in local loops here and there, which will look like ugly tumours in the code
+but will make faster - we want measurement in place first though
 
+to support this, we have to confront the problem of rollbacks more generally - maybe if the contexts included some facility for backing-up
+this could be built on at the end though
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+---------
 
 
 

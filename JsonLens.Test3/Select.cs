@@ -101,6 +101,9 @@ namespace JsonLens.Test3
 
         public AllSelector All
             => new AllSelector(ChildNode(Match.All));
+
+        public NoneSelector None
+            => new NoneSelector(ChildNode(Match.None));
     }
 
     public class AllSelector : Selector

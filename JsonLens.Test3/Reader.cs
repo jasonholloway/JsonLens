@@ -35,31 +35,38 @@ namespace JsonLens.Test3
 
                         case Match.Object:
                             var (status, chars, emitted) = ReadNext(ref x);
-                            //and we have to check the status
                             //and now our depth has changed, even without us having committed to reading anything! BEWARE!
                             
-                            if (status == Status.Ok && emitted.HasValue)
+                            if (status == Status.Ok && emitted.HasValue) 
                             {
                                 var (token, _, _) = emitted.Value;
 
                                 if (token == Token.Object)
                                 {
-                                    //if it is an object, then we enter it
+                                    x.Mode = Mode.Seek;
+
+                                    //having matched on Object opener
+                                    //now we go back to seeking
+                                    //but we, as readers, are in 'Object' mode, in as much as we are now looking at prop names
+                                    //maybe this is in fact a distinct reading mode...
+                                    //we've detected an object, and now we're looking at a PropName
+                                    //if we like the PropName, then we can maybe seek on the PropValue
+                                    //...
+
+                                    return (status, chars, emitted);
                                 }
                                 else
                                 {
                                     //if it's not an object, skip it!
+                                    //but should we return Nothing?
+                                    //should have a precise test for this
                                 }
+
+                                throw new NotImplementedException();
                             }
 
-
-
-                            //we're expecting to find an object precisely in front of us
-                            //so... we have to read the next token and...
-                            //if it's an object, good, better get reading...
-                            //well no, we're still in seek mode till we get to 'All'
-                            throw new NotImplementedException();
-
+                            return (status, chars, emitted);
+                            
                         case Match.Prop:
                             throw new NotImplementedException();
                     }
