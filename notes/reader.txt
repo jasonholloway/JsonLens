@@ -95,6 +95,83 @@ but if done in the reader, it will have to be done in multiple places
 better I think to have the conceptual separation here
 but not the cost of an entirely distinct layer: just a preliminary switching in the Reader please
 
+----------
+
+But, given an Object matcher, what do we do with Line?
+
+Line is in its own kind of limbo state: we want to ultimately support it, and so we're including it from the off so that it's in the mix, so to speak
+yet we want to avoid its complexity!
+
+there's no way we want to have to specify Line in selecting if we're only parsing values...
+
+even if we were in Line mode, we wouldn't want to have to specify Line... we'd just expect an enumeration output
+and the value yielded by each enumeration would be - a parsing, to be individually parsed
+
+but we also want to filter Lines...
+so, only pass through lines that match certain predicates
+however, the evaluation of such predicates would involve the requisite parts of the line being bound...
+and so we could say that, we always want to pass through lines
+
+though there could be inline predicates too
+expressed in the form of a query
+though - the conversion of a query into our own terms would necessarily involve a predicate of exactly the same form, and this predicate would need to be bound...
+
+BUT! the filtering of lines based on predicates doesn't just (on success) return the bound props; instead the entire line is fed through - so the tokens should be read anyway
+
+Predicates on anything require full pass through - well, except for nested selectors
+
+Lines then will always be passed through: even if nothing in the line is selected, thats for the downstream consumer to know what to do with. An empty line still means something, potentially
+
+------------
+
+So, Lines are passed through as elements in an enumeration, but what of arrays?
+these too should be passed through, even if empty?
+
+No, I don't think so...
+well...
+
+what's the case with objects? Well, with objects we have a special Selector, in the Prop selector: this explicitly only takes certain properties
+
+with arrays (and lines) the only distinguisher is value - and that can only be properly interpreted downstream
+
+so array and line elements are always passed through, it seems
+
+predicates on these can be enforced after
+
+-------
+
+So, Lines II:
+
+even if we're in SkipMode, even if we say /Select.None/
+lines should be passed through
+
+Similarly, if we did /Select.Array.None/
+array elements would still be passed through
+
+BUT we don't have array elements: we only have implicit elements
+so if we didn't pass through actual values, we'd need to pass through undefineds
+
+So, Lines too: should they be explicitly marked? Or should we just emit a flat list of values?
+
+-------
+
+I wonder what happens when bad strings are parsed? The tokenizer enforces the syntax.
+
+But on BADINPUT, how do we know where we are? Well, the requisite reader layer will detect the status and offer up its own context
+
+the Tokenizer guarantees the good format of its output stream, the syntactical elisions allowed by this are what we're currently working through
+
+-------
+
+So, should arrays output undefined? I think we need our own kind of 'nothing' token that just means something is there
+that can then be translated to 'undefined' further down the stream
+
+as such, we shouldn't differentiate between Line and Array. Line doesn't need Line and LineEnd, as its implicitly present in all parsings
+the tokenizer will just emit a concatenation of values, which will be interpreted as lines or array values or whatever
+
+
+ 
+
 
 
 

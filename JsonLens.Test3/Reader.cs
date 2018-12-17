@@ -24,32 +24,50 @@ namespace JsonLens.Test3
                     switch (x.Select.Strategy)
                     {
                         case Match.None:
-                            //Enter skip mode till... when? Till we've popped out of our current depth; then we go back to seeking
                             x.Mode = Mode.Skip;
                             x.MoveTill = x.Depth - 1;
                             return Ok();
 
                         case Match.All:
-                            //like skip, we have to put place a condition for popping out
                             x.Mode = Mode.Read;
                             x.MoveTill = x.Depth - 1;
                             return Ok();
 
                         case Match.Object:
-                            //we're after an object mate: read forwards till we find it OR we know we've failed in our search
+                            var (status, chars, emitted) = ReadNext(ref x);
+                            //and we have to check the status
+                            //and now our depth has changed, even without us having committed to reading anything! BEWARE!
+                            
+                            if (status == Status.Ok && emitted.HasValue)
+                            {
+                                var (token, _, _) = emitted.Value;
+
+                                if (token == Token.Object)
+                                {
+                                    //if it is an object, then we enter it
+                                }
+                                else
+                                {
+                                    //if it's not an object, skip it!
+                                }
+                            }
+
+
+
+                            //we're expecting to find an object precisely in front of us
+                            //so... we have to read the next token and...
+                            //if it's an object, good, better get reading...
+                            //well no, we're still in seek mode till we get to 'All'
                             throw new NotImplementedException();
 
                         case Match.Prop:
-                            throw new NotImplementedException();
-
-                        case Match.Value:
                             throw new NotImplementedException();
                     }
                     throw new NotImplementedException();
 
                 case Mode.Skip:
                     if(x.Depth != x.MoveTill) {
-                        return SuppressNextToken(ref x);    //drive locally: no data to accumulate, just cursor to increment
+                        return SuppressNext(ref x);    //drive locally: no data to accumulate, just cursor to increment
                     }
                     else {
                         x.Mode = Mode.Seek;
@@ -57,9 +75,13 @@ namespace JsonLens.Test3
                     }
 
                 case Mode.Read:
-                    //pass through the results of the tokenizer to the driver, please
-                    //but only if we're still in-depth
-                    throw new NotImplementedException();
+                    if(x.Depth != x.MoveTill) {
+                        return ReadNext(ref x);
+                    }
+                    else {
+                        x.Mode = Mode.Seek;
+                        return Ok();
+                    }
 
                 default:
                     throw new Exception("Strange Reader.Mode encountered!");
@@ -69,13 +91,13 @@ namespace JsonLens.Test3
             //******************************
         }
 
-        static Result SuppressNextToken(ref Context x)
+        static Result SuppressNext(ref Context x)
         {
-            var (status, chars, _) = NextToken(ref x);
+            var (status, chars, _) = ReadNext(ref x);
             return (status, chars, null);
         }
 
-        static Result NextToken(ref Context x)
+        static Result ReadNext(ref Context x)
         {
             var (status, chars, emitted) = Tokenizer.Next(ref x.TokenizerContext);
 

@@ -7,8 +7,8 @@ namespace JsonLens.Test3
         public static AllSelector All
             => new AllSelector(new SelectNode(null, Match.All));
 
-        public static ValueSelector Value
-            => new ValueSelector(new SelectNode(null, Match.Value));
+        public static ObjectSelector Object
+            => new ObjectSelector(new SelectNode(null, Match.Object));
 
         public static NoneSelector None
             => new NoneSelector(new SelectNode(null, Match.None));
@@ -20,8 +20,7 @@ namespace JsonLens.Test3
         None,
         All,
         Object,
-        Prop,
-        Value
+        Prop
     }
     
 
@@ -83,15 +82,6 @@ namespace JsonLens.Test3
         { }
     }
     
-    public class ValueSelector : Selector
-    {
-        public ValueSelector(SelectNode parent) : base(parent)
-        { }
-
-        public ObjectSelector Object
-            => new ObjectSelector(ChildNode(Match.Object));
-    }
-
     public class ObjectSelector : Selector
     {
         public ObjectSelector(SelectNode parent) : base(parent)
@@ -105,7 +95,10 @@ namespace JsonLens.Test3
     {
         public PropSelector(SelectNode parent) : base(parent)
         { }
-        
+
+        public ObjectSelector Object
+            => new ObjectSelector(ChildNode(Match.Object));
+
         public AllSelector All
             => new AllSelector(ChildNode(Match.All));
     }

@@ -44,7 +44,7 @@ namespace JsonLens.Test
         {
             [Fact]
             public void ObjectProp()
-                => Read("{\"hello\":123}", Select.Value.Object.Prop("hello").All)
+                => Read("{\"hello\":123}", Select.Object.Prop("hello").All)
                     .ShouldBe(new[] {
                         (Token.Number, "123")
                     });
