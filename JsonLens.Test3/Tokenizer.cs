@@ -26,18 +26,18 @@ namespace JsonLens.Test
                 case Mode.Line:
                     if (x.Current == 0) {
                         x.Switch(Mode.End);
-                        return Ok;
+                        return Ok();
                     }
                     else {
                         x.Push(Mode.LineEnd);
                         x.Switch(Mode.Value);
-                        return Ok;
+                        return Ok();
                     }
 
                 case Mode.LineEnd:
                     if (x.Current == 0) {
                         x.Switch(Mode.End);
-                        return Ok;
+                        return Ok();
                     }
 
                     throw new NotImplementedException("Handle line break?");
@@ -59,15 +59,17 @@ namespace JsonLens.Test
                             return x.Emit(1, Token.Object);
 
                         case '[':
-                            x.Switch(Mode.Array);
+                            x.Switch(Mode.Array1);
                             return x.Emit(1, Token.Array);
                     }
                     break;
 
                 case Mode.Object1:
+                    x.IncreaseDepth();
                     switch (x.Current) {
                         case '}':
                             x.Pop();
+                            x.DecreaseDepth();
                             return x.Emit(1, Token.ObjectEnd);
 
                         case '"':
@@ -82,7 +84,7 @@ namespace JsonLens.Test
                         case ':':
                             x.Push(Mode.Object3);
                             x.Switch(Mode.Value);
-                            return x.Emit(1);
+                            return Ok(1);
                     }
                     break;
                 
@@ -90,34 +92,38 @@ namespace JsonLens.Test
                     switch (x.Current) {
                         case ',':
                             x.Switch(Mode.Object1);
-                            return x.Emit(1);
+                            return Ok(1);
                         case '}':
                             x.Pop();
+                            x.DecreaseDepth();
                             return x.Emit(1, Token.ObjectEnd);
                     }
                     break;
                 
-                case Mode.Array:
+                case Mode.Array1:
+                    x.IncreaseDepth();
                     switch(x.Current) {
                         case ']':
                             x.Pop();
+                            x.DecreaseDepth();
                             return x.Emit(1, Token.ArrayEnd);
 
                         default:
-                            x.Push(Mode.ArrayTail);
+                            x.Push(Mode.Array2);
                             x.Switch(Mode.Value);
-                            return Ok;
+                            return Ok();
                     }
 
-                case Mode.ArrayTail:
+                case Mode.Array2:
                     switch (x.Current) {
                         case ']':
                             x.Pop();
+                            x.DecreaseDepth();
                             return x.Emit(1, Token.ArrayEnd);
 
                         case ',':
-                            x.Switch(Mode.Array);
-                            return x.Emit(1);
+                            x.Switch(Mode.Array1);
+                            return Ok(1);
                     }
                     break;
 
@@ -136,7 +142,7 @@ namespace JsonLens.Test
                 if (!IsNumeric(x.Span[i]))
                 {
                     x.Pop();
-                    return x.Emit(i, new Emit(0, Token.Number, 0, i));
+                    return x.Emit(i, Token.Number, 0, i);
                 }
             }
 
@@ -157,7 +163,7 @@ namespace JsonLens.Test
 
                     case '"':
                         x.Pop();
-                        return x.Emit(i + 1, new Emit(0, Token.StringEnd, 0, i));
+                        return x.Emit(i + 1, Token.StringEnd, 0, i);
                 }
             }
 
@@ -175,7 +181,7 @@ namespace JsonLens.Test
                     break;
             }
 
-            return x.Emit(i);
+            return Ok(i);
         }
 
         
@@ -185,8 +191,8 @@ namespace JsonLens.Test
         static bool IsWhitespace(char c)
             => c == ' '; //more to add!
 
-        static Result Ok
-            => (Status.Ok, 0, null);
+        static Result Ok(int chars = 0)
+            => (Status.Ok, chars, null);
 
         static Result Underrun
             => (Status.Underrun, 0, null);
@@ -216,16 +222,17 @@ namespace JsonLens.Test
         public ref struct Context
         {
             public ReadOnlySpan<char> Span;
-            public Stack<Mode> ModeStack;
             public Mode Mode;
-            public int Depth;
+            
+            Stack<Mode> _modes;
+            int _depth;
 
             public Context(ReadOnlySpan<char> span)
             {
                 Span = span;
-                ModeStack = new Stack<Mode>();
+                _modes = new Stack<Mode>();
                 Mode = Mode.Line;
-                Depth = 0;
+                _depth = 0;
             }
 
             public char Current => Span[0];
@@ -234,36 +241,33 @@ namespace JsonLens.Test
                 => Mode = mode;
 
             public void Push(Mode mode)
-                => ModeStack.Push(mode);
+                => _modes.Push(mode);
 
             public void Pop()
-                => Switch(ModeStack.Pop());
+                => Switch(_modes.Pop());
 
-            public Result Emit(Token token)
-                => Emit(new Emit(0, token, 0, 0));
+            public void IncreaseDepth()
+                => _depth++;
 
-            public Result Emit(Emit emit)
-                => Emit(0, emit);
+            public void DecreaseDepth()
+                => _depth--;
             
-            public Result Emit(int chars = 0, Emit? emit = null)
-                => (Status.Ok, chars, emit);
-
-            public Result Emit(int chars, Token token)
-                => Emit(chars, new Emit(0, token, 0, 0));
+            public Result Emit(int chars, Token token, int offset = 0, int length = 0)
+                => (Status.Ok, chars, new Emit(_depth, token, offset, length));
         }
 
         public enum Mode : byte
         {
             Line,
             Object1,
-            Array,
+            Array1,
             Value,
             String,
             LineEnd,
             End,
             Object2,
             Object3,
-            ArrayTail,
+            Array2,
         }
     }
 
