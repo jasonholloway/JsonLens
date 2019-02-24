@@ -39,7 +39,7 @@ namespace JsonLens.Test
                 => Read("\"wibble\"", Select.None)
                     .ShouldBeEmpty();
         }
-               
+
         public class Objects
         {
             [Fact]
@@ -87,14 +87,14 @@ namespace JsonLens.Test
                                    
             while(true)
             {
-                var (status, chars, emitted) = Reader.Next(ref x);
+                var (status, chars, emit) = Reader.Next(ref x);
              
                 switch(status)
                 {
                     case Status.Ok:
-                        if(emitted.HasValue) {
-                            var (token, offset, length) = emitted.Value;
-                            output.Add((token, json.Substring(index + offset, length)));
+                        if(emit.HasValue) {
+                            var e = emit.Value;
+                            output.Add((e.Token, json.Substring(index + e.Offset, e.Length)));
                         }
 
                         x.TokenizerContext.Span = x.TokenizerContext.Span.Slice(chars);

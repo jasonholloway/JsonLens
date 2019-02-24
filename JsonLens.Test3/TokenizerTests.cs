@@ -1,10 +1,8 @@
 ﻿using System;
 using Xunit;
 using Shouldly;
-using System.Linq;
 using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
+using System.Linq;
 
 namespace JsonLens.Test
 {
@@ -147,8 +145,8 @@ namespace JsonLens.Test
                     case Status.Ok:
                         if (emitted.HasValue)
                         {
-                            var (token, from, length) = emitted.Value;
-                            output.Add((token, input.Substring(offset + from, length)));
+                            var e = emitted.Value;
+                            output.Add((e.Token, input.Substring(offset + e.Offset, e.Length)));
                         }
                         
                         x.Span = x.Span.Slice(chars);

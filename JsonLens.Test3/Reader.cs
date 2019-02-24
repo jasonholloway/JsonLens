@@ -1,11 +1,9 @@
 ﻿using JsonLens.Test;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace JsonLens.Test3
 {
-    using Result = ValueTuple<Status, int, (Token, int, int)?>;
+    using Result = ValueTuple<Status, int, Tokenizer.Emit?>;
     
     public static class Reader
     {
@@ -44,12 +42,12 @@ namespace JsonLens.Test3
                             return Ok();
 
                         case Match.Object:
-                            var (status, chars, emitted) = ReadNext(ref x);
+                            var (status, chars, emit) = ReadNext(ref x);
                             //and now our depth has changed, even without us having committed to reading anything! BEWARE!
                             
-                            if (status == Status.Ok && emitted.HasValue) 
+                            if (status == Status.Ok && emit.HasValue) 
                             {
-                                var (token, _, _) = emitted.Value;
+                                var token = emit.Value.Token;
 
                                 if (token == Token.Object)
                                 {
@@ -61,7 +59,7 @@ namespace JsonLens.Test3
                                     //and SeekProps requires a compiled map of possible properties, with sub-strategies hanging off em
                                     //so then such seeking is also a kind of strategy - strategies are shared between modes and matchers, then
 
-                                    return (status, chars, emitted);
+                                    return (status, chars, emit);
                                 }
                                 else
                                 {
@@ -73,7 +71,7 @@ namespace JsonLens.Test3
                                 throw new NotImplementedException();
                             }
 
-                            return (status, chars, emitted);
+                            return (status, chars, emit);
                             
                         case Match.Prop:
                             throw new NotImplementedException();
@@ -114,14 +112,14 @@ namespace JsonLens.Test3
 
         static Result ReadNext(ref Context x)
         {
-            var (status, chars, emitted) = Tokenizer.Next(ref x.TokenizerContext);
+            var (status, chars, emit) = Tokenizer.Next(ref x.TokenizerContext);
 
-            if(status == Status.Ok && emitted.HasValue) { 
-                var (token, _, _) = emitted.Value;
+            if(status == Status.Ok && emit.HasValue) { 
+                var token = emit.Value.Token;
                 x.Depth += GetDepthChange(token);
             }
 
-            return (status, chars, emitted);
+            return (status, chars, emit);
         }
 
         static int GetDepthChange(Token token)
