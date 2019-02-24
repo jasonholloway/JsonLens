@@ -68,6 +68,22 @@ namespace JsonLens.Test
                 });
 
         [Fact]
+        public void ObjectWithProperties()
+            => Tokenize("{\"wibble\":\"blah\",\"plop\":3}")
+                .ShouldBe(new[] {
+                    (Token.Object, ""),
+                    (Token.String, ""),
+                    (Token.StringEnd, "wibble"),
+                    (Token.String, ""),
+                    (Token.StringEnd, "blah"),
+                    (Token.String, ""),
+                    (Token.StringEnd, "plop"),
+                    (Token.Number, "3"),
+                    (Token.ObjectEnd, "")
+                });
+
+
+        [Fact]
         public void SimpleNumber()
             => Tokenize("1234")
                 .ShouldBe(new[] {

@@ -55,7 +55,7 @@ namespace JsonLens.Test
                             return ReadNumber(ref x);
 
                         case '{':
-                            x.Switch(Mode.Object);
+                            x.Switch(Mode.Object1);
                             return Ok(1, Token.Object);
 
                         case '[':
@@ -64,28 +64,39 @@ namespace JsonLens.Test
                     }
                     break;
 
-                case Mode.Object:
+                case Mode.Object1:
                     switch (x.Current) {
                         case '}':
                             x.Pop();
                             return Ok(1, Token.ObjectEnd);
 
                         case '"':
-                            x.Push(Mode.ObjectSeparator);
+                            x.Push(Mode.Object2);
                             x.Switch(Mode.String);
                             return Ok(1, Token.String);
                     }
                     break;
                 
-                case Mode.ObjectSeparator:
+                case Mode.Object2:
                     switch(x.Current) {
                         case ':':
-                            x.Push(Mode.Object);
+                            x.Push(Mode.Object3);
                             x.Switch(Mode.Value);
                             return Ok(1);
                     }
                     break;
-
+                
+                case Mode.Object3:
+                    switch (x.Current) {
+                        case ',':
+                            x.Switch(Mode.Object1);
+                            return Ok(1);
+                        case '}':
+                            x.Pop();
+                            return Ok(1, Token.ObjectEnd);
+                    }
+                    break;
+                
                 case Mode.Array:
                     switch(x.Current) {
                         case ']':
@@ -237,23 +248,20 @@ namespace JsonLens.Test
 
             public void Pop()
                 => Switch(ModeStack.Pop());
-
         }
 
         public enum Mode : byte
         {
             Line,
-            Object,
+            Object1,
             Array,
             Value,
             String,
-            ObjectKey,
-            ObjectValue,
-            Number,
             LineEnd,
             End,
-            ObjectSeparator,
-            ArrayTail
+            Object2,
+            Object3,
+            ArrayTail,
         }
     }
 
