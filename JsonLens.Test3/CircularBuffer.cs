@@ -2,38 +2,41 @@ using System;
 
 namespace JsonLens.Test {
     
-    public ref struct CircularBuffer<T> {
-        int _writeHead;
-        int _readHead;
-        Span<T> _data;
+    public ref struct CircularBuffer<T> 
+    {
+        readonly Span<T> _data;
+        readonly int _mask;
         
-        //should take mask for loopin...
-
-        public CircularBuffer(Span<T> data) {
-            _writeHead = 0;
-            _readHead = 0;
+        int _cursor;
+        int _charge;
+        
+        public CircularBuffer(Span<T> data, int mask) {
             _data = data;
+            _mask = mask;
+            _cursor = 0;
+            _charge = 0;
         }
 
         public bool Write(T v) {
-            if (_writeHead >= _data.Length) {
+            if (_charge >= _data.Length) {
                 return false;
             }
-            else {
-                _data[_writeHead++] = v;
-                return true;
-            }
+            
+            _data[(_cursor + _charge) & _mask] = v;
+            _charge++;
+            return true;
         }
 
         public bool Read(out T v) {
-            if (_readHead >= _writeHead) {
+            if (_charge <= 0) {
                 v = default(T);
                 return false;
             }
-            else {
-                v = _data[_readHead++];
-                return true;
-            }
+            
+            v = _data[_cursor];
+            _cursor = (_cursor + 1) & _mask;
+            _charge--;
+            return true;
         }
     }
     

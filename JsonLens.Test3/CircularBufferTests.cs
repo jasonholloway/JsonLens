@@ -9,7 +9,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void CanWriteAndRead() {
             Span<int> data = stackalloc int[8];
-            var buffer = new CircularBuffer<int>(data);
+            var buffer = new CircularBuffer<int>(data, 7);
 
             buffer.Write(1);
 
@@ -20,7 +20,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void MultiWritesAndReads() {
             Span<int> data = stackalloc int[8];
-            var buffer = new CircularBuffer<int>(data);
+            var buffer = new CircularBuffer<int>(data, 7);
 
             buffer.Write(1).ShouldBeTrue();
             buffer.Write(2).ShouldBeTrue();
@@ -39,7 +39,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void ReadingPastWrite_ReturnsFalse() {
             Span<int> data = stackalloc int[2];
-            var buffer = new CircularBuffer<int>(data);
+            var buffer = new CircularBuffer<int>(data, 1);
 
             buffer.Write(1);
             
@@ -50,7 +50,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void CantWriteAfterFillingBuffer() {
             Span<int> data = stackalloc int[2];
-            var buffer = new CircularBuffer<int>(data);
+            var buffer = new CircularBuffer<int>(data, 1);
 
             buffer.Write(1).ShouldBeTrue();
             buffer.Write(2).ShouldBeTrue();
@@ -60,7 +60,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void ReadingAndWritingLoop() {
             Span<int> data = stackalloc int[2];
-            var buffer = new CircularBuffer<int>(data);
+            var buffer = new CircularBuffer<int>(data, 1);
 
             buffer.Write(1);
             buffer.Write(2);
