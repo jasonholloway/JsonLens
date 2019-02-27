@@ -1,4 +1,5 @@
 using System;
+using System.Xml;
 using JsonLens.Test;
 using Shouldly;
 using Xunit;
@@ -84,7 +85,88 @@ namespace JsonLens.Test3 {
             e.ShouldBe(5);
         }
         
-        //then, the circularity of the buffer needs testing too...
+        [Fact]
+        public void BlahBlah1() {
+            Span<int> data = stackalloc int[4];
+            var buffer = new CircularBuffer<int>(data, 3);
+
+            buffer.Write(1);
+            
+            data[0].ShouldBe(1);
+            
+            buffer.Read(out var i);
+            i.ShouldBe(1);
+        }
+
         
+        //unfortunately appears to be the case that
+        //just making something refstruct doesn't make it perform magically:
+        //it just shuts down what the compiler will allow
+        //Span itself is magic, as it includes the magical, managed pointer containing ByReference
+        
+        [Fact]
+        public void BlahBlah2() {
+            Span<int> data = stackalloc int[4];
+            var cont = new Container(data, 3);
+
+            cont.Write(1);
+            
+            data[0].ShouldBe(1);
+            cont.Read().ShouldBe(1);
+        }
+
+        ref struct Container {
+            CircularBuffer<int> _buffer;
+
+            public Container(Span<int> data, int mask) {
+                _buffer = new CircularBuffer<int>(data, mask);
+            }
+
+            public void Write(int i)
+                => _buffer.Write(i);
+
+            public int Read() {
+                _buffer.Read(out int i);
+                return i;
+            }
+        }
+
+        [Fact]
+        public void Gah() {
+            var a = new AStruct(1);
+            a.Inc();
+            a.Val.ShouldBe(2);
+        }
+        
+        [Fact]
+        public void Gah2() {
+            var c = new Container2(1);
+            c.Inc();
+            c.Val.ShouldBe(2);
+        }
+
+        ref struct AStruct {
+            int _i;
+
+            public AStruct(int i) {
+                _i = i;
+            }
+
+            public void Inc() => _i++;
+
+            public int Val => _i;
+        }
+
+        ref struct Container2 {
+            AStruct _s;
+
+            public Container2(int i) {
+                _s = new AStruct(i);
+            }
+
+            public void Inc() => _s.Inc();
+
+            public int Val => _s.Val;
+        }
     }
 }

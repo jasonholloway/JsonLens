@@ -16,7 +16,7 @@ namespace JsonLens.Test {
             _cursor = 0;
             _charge = 0;
         }
-
+        
         public bool Write(T v) {
             if (_charge >= _data.Length) {
                 return false;

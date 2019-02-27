@@ -3,7 +3,7 @@ using System;
 
 namespace JsonLens.Test3
 {
-    using Result = ValueTuple<Status, int, Tokenizer.Emit?>;
+    using Result = ValueTuple<Status, int, Tokenizer.Emitted?>;
     
     public static class Reader
     {
@@ -112,14 +112,17 @@ namespace JsonLens.Test3
 
         static Result ReadNext(ref Context x)
         {
-            var (status, chars, emit) = Tokenizer.Next(ref x.TokenizerContext);
-
-            if(status == Status.Ok && emit.HasValue) { 
-                var token = emit.Value.Token;
-                x.Depth += GetDepthChange(token);
-            }
-
-            return (status, chars, emit);
+            throw new NotImplementedException();
+            
+            
+//            var (status, chars) = Tokenizer.Next(ref x.TokenizerContext);
+//
+//            if(status == Status.Ok) { 
+////                var token = emit.Value.Token;
+////                x.Depth += GetDepthChange(token);
+//            }
+//
+//            return (status, chars, default);
         }
 
         static int GetDepthChange(Token token)

@@ -134,18 +134,20 @@ namespace JsonLens.Test
             var output = new List<(Token, string)>();
             int offset = 0;
 
-            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan());
+            Span<Tokenizer.Emitted> bufferData = stackalloc Tokenizer.Emitted[16];
+            var buffer = new CircularBuffer<Tokenizer.Emitted>(bufferData, 15);  //passing stackalloced bufferData in here causes problems
+
+            var s = input.AsZeroTerminatedSpan();
+            var x = new Tokenizer.Context(s);
 
             while (true)
             {
-                var (status, chars, emitted) = Tokenizer.Next(ref x);
+                var (status, chars) = Tokenizer.Next(ref x, ref buffer);
 
                 switch (status)
                 {
                     case Status.Ok:
-                        if (emitted.HasValue)
-                        {
-                            var e = emitted.Value;
+                        while (buffer.Read(out var e)) {
                             output.Add((e.Token, input.Substring(offset + e.Offset, e.Length)));
                         }
                         

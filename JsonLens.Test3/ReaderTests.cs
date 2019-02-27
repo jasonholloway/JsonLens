@@ -78,40 +78,45 @@ namespace JsonLens.Test
 
         static (Token, string)[] Read(string json, Selector selector)
         {
-            var x = new Reader.Context(
-                        new Tokenizer.Context(json.AsZeroTerminatedSpan()), 
-                        selector.GetSelectTree());
-
-            var output = new List<(Token, string)>();
-            int index = 0;
-                                   
-            while(true)
-            {
-                var (status, chars, emit) = Reader.Next(ref x);
-             
-                switch(status)
-                {
-                    case Status.Ok:
-                        if(emit.HasValue) {
-                            var e = emit.Value;
-                            output.Add((e.Token, json.Substring(index + e.Offset, e.Length)));
-                        }
-
-                        x.TokenizerContext.Span = x.TokenizerContext.Span.Slice(chars);
-                        index += chars;
-                        break;
-
-                    case Status.End:
-                        return output.ToArray();
-
-                    case Status.Underrun:
-                        throw new NotImplementedException("UNDERRUN");
-
-                    case Status.BadInput:
-                        throw new NotImplementedException("BADINPUT");
-
-                }
-            }
+            throw new NotImplementedException();
+//            
+//            Span<Tokenizer.Emit> bufferData = stackalloc Tokenizer.Emit[16];
+//            var buffer = new CircularBuffer<Tokenizer.Emit>(bufferData, 15);
+//            
+//            var x = new Reader.Context(
+//                        new Tokenizer.Context(ref json.AsZeroTerminatedSpan(), ref buffer), 
+//                        selector.GetSelectTree());
+//
+//            var output = new List<(Token, string)>();
+//            int index = 0;
+//                                   
+//            while(true)
+//            {
+//                var (status, chars, emit) = Reader.Next(ref x);
+//             
+//                switch(status)
+//                {
+//                    case Status.Ok:
+//                        if(emit.HasValue) {
+//                            var e = emit.Value;
+//                            output.Add((e.Token, json.Substring(index + e.Offset, e.Length)));
+//                        }
+//
+//                        x.TokenizerContext.Span = x.TokenizerContext.Span.Slice(chars);
+//                        index += chars;
+//                        break;
+//
+//                    case Status.End:
+//                        return output.ToArray();
+//
+//                    case Status.Underrun:
+//                        throw new NotImplementedException("UNDERRUN");
+//
+//                    case Status.BadInput:
+//                        throw new NotImplementedException("BADINPUT");
+//
+//                }
+//            }
         }
 
     }
