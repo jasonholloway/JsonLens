@@ -42,6 +42,7 @@ namespace JsonLens.Test
                 ? Ok(before + length + after)
                 : Underrun;
         
+        
         public Result Next(ref Inp @in, ref Outp @out)
         {
             if(@in.Length == 0) { //should just try reading, surely...
@@ -86,7 +87,7 @@ namespace JsonLens.Test
                     switch(current) {
                         case '"':
                             Switch(Mode.String);
-                            return Emit(ref @out, 1, 0, Token.String);
+                            return Ok(1);
                             
                         case char c when IsNumeric(c):
                             return ReadNumber(ref @in, ref @out);
@@ -112,7 +113,7 @@ namespace JsonLens.Test
                         case '"':
                             Push(Mode.Object2);
                             Switch(Mode.String);
-                            return Emit(ref @out, 1, 0, Token.String);
+                            return Ok(1);
                     }
                     break;
                 
@@ -200,7 +201,7 @@ namespace JsonLens.Test
 
                     case '"':
                         Pop();
-                        return Emit(ref outp, 0, i, Token.StringEnd, 1);
+                        return Emit(ref outp, 0, i, Token.String, 1);
                 }
             }
 

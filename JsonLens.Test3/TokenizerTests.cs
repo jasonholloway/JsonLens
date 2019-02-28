@@ -26,43 +26,41 @@ namespace JsonLens.Test
         public void SimpleString()
             => Tokenize("\"Hello!!!\"")
                 .ShouldBe(new[] {
-                    (Token.String, ""),
-                    (Token.StringEnd, "Hello!!!")
+                    (Token.String, "Hello!!!")
                 });
 
         [Fact]
         public void SimpleString_WithEscapedQuote()
             => Tokenize(@"""Bl\""ah""")
                 .ShouldBe(new[] {
-                    (Token.String, ""),
-                    (Token.StringEnd, "Bl\\\"ah"), //BUT!!! the escape needs decoding in the reading...
+                    (Token.String, "Bl\\\"ah"), //BUT!!! the escape needs decoding in the reading...
                 });
 
         [Fact]
         public void SimpleString_WithEscapedEscape()
             => Tokenize("\"Oi\\\"")
                 .ShouldBe(new[] {
-                    (Token.String, ""),
-                    (Token.StringEnd, "Oi\\")
+                    (Token.String, "Oi\\")
                 });
 
         [Fact]
         public void SimpleString_WithSpaceAtStart()
             => Tokenize("\"  Boo!\"")
                 .ShouldBe(new[] {
-                    (Token.String, ""),
-                    (Token.StringEnd, "  Boo!")
+                    (Token.String, "  Boo!")
                 });
+        
+        //and need to test StringParts...
+        //but need buffer underruns for this
+        //...
 
         [Fact]
         public void ObjectWithProperty()
             => Tokenize("{\"wibble\":\"blah\"}")
                 .ShouldBe(new[] {
                     (Token.Object, ""),
-                    (Token.String, ""),
-                    (Token.StringEnd, "wibble"),
-                    (Token.String, ""),
-                    (Token.StringEnd, "blah"),
+                    (Token.String, "wibble"),
+                    (Token.String, "blah"),
                     (Token.ObjectEnd, "")
                 });
 
@@ -71,12 +69,9 @@ namespace JsonLens.Test
             => Tokenize("{\"wibble\":\"blah\",\"plop\":3}")
                 .ShouldBe(new[] {
                     (Token.Object, ""),
-                    (Token.String, ""),
-                    (Token.StringEnd, "wibble"),
-                    (Token.String, ""),
-                    (Token.StringEnd, "blah"),
-                    (Token.String, ""),
-                    (Token.StringEnd, "plop"),
+                    (Token.String, "wibble"),
+                    (Token.String, "blah"),
+                    (Token.String, "plop"),
                     (Token.Number, "3"),
                     (Token.ObjectEnd, "")
                 });
@@ -97,8 +92,7 @@ namespace JsonLens.Test
                     (Token.Number, "1"),
                     (Token.Number, "2"),
                     (Token.Number, "3"),
-                    (Token.String, ""),
-                    (Token.StringEnd, "hello"),
+                    (Token.String, "hello"),
                     (Token.ArrayEnd, "")
                 });
 
