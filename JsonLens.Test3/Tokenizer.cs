@@ -1,61 +1,62 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel.InProcDataCollector;
+using JsonLens.Test3;
 
 namespace JsonLens.Test
 {
     using Result = ValueTuple<Status, int>;
     using Outp = CircularBuffer<Tokenizer.Emitted>;
-    using Inp = Span<char>;
+    using Inp = ReadOnlySpan<char>;
     
     public struct Tokenizer
     {        
         Mode _mode;
         Stack<Mode> _modes;
         int _depth;
+        int _offset;
 
-        public Tokenizer(Mode mode = Mode.Line) {
+        public Tokenizer(Mode mode) {
             _mode = mode;
             _modes = new Stack<Mode>();
             _depth = 0;
+            _offset = 0;
         }
 
-        public void Switch(Mode mode)
+        void Switch(Mode mode)
             => _mode = mode;
 
-        public void Push(Mode mode)
+        void Push(Mode mode)
             => _modes.Push(mode);
 
-        public void Pop()
+        void Pop()
             => Switch(_modes.Pop());
 
-        public void IncreaseDepth()
+        void IncreaseDepth()
             => _depth++;
 
-        public void DecreaseDepth()
+        void DecreaseDepth()
             => _depth--;
+
+        Result Emit(ref Outp output, int before, int length, Token token, int after = 0)
+            => output.Write(new Emitted(_depth, before, length, token))
+                ? Ok(before + length + after)
+                : Underrun;
         
-        public Result Emit(ref Outp output, int chars, Token token, int offset = 0, int length = 0)
-            => output.Write(new Emitted(_depth, token, offset, length))
-                ? (Status.Ok, chars)
-                : (Status.Underrun, 0);
-        
-        
-        public Result Next(ref Inp inp, ref Outp outp)
+        public Result Next(ref Inp @in, ref Outp @out)
         {
-            if(inp.Length == 0) { //should just try reading, surely...
+            if(@in.Length == 0) { //should just try reading, surely...
                 return Underrun;
             }
 
-            if(_mode != Mode.String && IsWhitespace(inp[0])) {
-                return SkipWhitespace(ref inp);
+            if(_mode != Mode.String && IsWhitespace(@in[0])) {
+                return SkipWhitespace(ref @in);
             }
 
             //stupid edge case
             //of line feed without the carriage return
             //requires look-ahead
 
-            char current = inp[0];
+            char current = @in[0];
 
             switch(_mode)
             {
@@ -85,18 +86,18 @@ namespace JsonLens.Test
                     switch(current) {
                         case '"':
                             Switch(Mode.String);
-                            return Emit(ref outp, 1, Token.String);
+                            return Emit(ref @out, 1, 0, Token.String);
                             
                         case char c when IsNumeric(c):
-                            return ReadNumber(ref inp, ref outp);
+                            return ReadNumber(ref @in, ref @out);
 
                         case '{':
                             Switch(Mode.Object1);
-                            return Emit(ref o, 1, Token.Object);
+                            return Emit(ref @out, 1, 0, Token.Object);
 
                         case '[':
                             Switch(Mode.Array1);
-                            return Emit(ref o, 1, Token.Array);
+                            return Emit(ref @out, 1, 0, Token.Array);
                     }
                     break;
 
@@ -106,12 +107,12 @@ namespace JsonLens.Test
                         case '}':
                             Pop();
                             DecreaseDepth();
-                            return Emit(ref o, 1, Token.ObjectEnd);
+                            return Emit(ref @out, 1, 0, Token.ObjectEnd);
 
                         case '"':
                             Push(Mode.Object2);
                             Switch(Mode.String);
-                            return Emit(ref o, 1, Token.String);
+                            return Emit(ref @out, 1, 0, Token.String);
                     }
                     break;
                 
@@ -132,7 +133,7 @@ namespace JsonLens.Test
                         case '}':
                             Pop();
                             DecreaseDepth();
-                            return Emit(ref o, 1, Token.ObjectEnd);
+                            return Emit(ref @out, 1, 0, Token.ObjectEnd);
                     }
                     break;
                 
@@ -142,7 +143,7 @@ namespace JsonLens.Test
                         case ']':
                             Pop();
                             DecreaseDepth();
-                            return Emit(ref o, 1, Token.ArrayEnd);
+                            return Emit(ref @out, 1, 0, Token.ArrayEnd);
 
                         default:
                             Push(Mode.Array2);
@@ -155,7 +156,7 @@ namespace JsonLens.Test
                         case ']':
                             Pop();
                             DecreaseDepth();
-                            return Emit(ref o, 1, Token.ArrayEnd);
+                            return Emit(ref @out, 1, 0, Token.ArrayEnd);
 
                         case ',':
                             Switch(Mode.Array1);
@@ -164,7 +165,7 @@ namespace JsonLens.Test
                     break;
 
                 case Mode.String:
-                    return ReadString(ref x, ref o);
+                    return ReadString(ref @in, ref @out);
             }
             
             return BadInput;
@@ -178,14 +179,14 @@ namespace JsonLens.Test
                 if (!IsNumeric(inp[i]))
                 {
                     Pop();
-                    return Emit(ref o, i, Token.Number);
+                    return Emit(ref outp, 0, i, Token.Number);
                 }
             }
 
             return Underrun;
         }
 
-        Result ReadString(ref Inp inp, ref Outp o)
+        Result ReadString(ref Inp inp, ref Outp outp)
         {
             int i = 0;
 
@@ -199,7 +200,7 @@ namespace JsonLens.Test
 
                     case '"':
                         Pop();
-                        return Emit(ref o, i + 1, Token.StringEnd);
+                        return Emit(ref outp, 0, i, Token.StringEnd, 1);
                 }
             }
 
@@ -226,8 +227,10 @@ namespace JsonLens.Test
         static bool IsWhitespace(char c)
             => c == ' '; //more to add!
 
-        static Result Ok(int chars = 0)
-            => (Status.Ok, chars);
+        Result Ok(int chars = 0) {
+            _offset += chars;
+            return (Status.Ok, chars);
+        }
 
         static Result Underrun
             => (Status.Underrun, 0);
@@ -242,16 +245,16 @@ namespace JsonLens.Test
         public struct Emitted
         {
             public readonly int Depth;
-            public readonly Token Token;
             public readonly int Offset;
+            public readonly Token Token;
             public readonly int Length;
 
-            public Emitted(int depth, Token token, int offset, int length)
+            public Emitted(int depth, int offset, int length, Token token)
             {
                 Depth = depth;
-                Token = token;
                 Offset = offset;
                 Length = length;
+                Token = token;
             }
         }
 

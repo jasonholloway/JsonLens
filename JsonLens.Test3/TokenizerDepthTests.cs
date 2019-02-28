@@ -79,13 +79,15 @@ namespace JsonLens.Test
         {
             var output = new List<(int, Token)>();
 
-            Span<Tokenizer.Emitted> bufferData = stackalloc Tokenizer.Emitted[16];
-            var buffer = new CircularBuffer<Tokenizer.Emitted>(default, 15);            //passing bufferData here breaks line 88 below
-            var x = new Tokenizer.Context(input.AsZeroTerminatedSpan());
+            Span<Tokenizer.Emitted> bufferData = new Tokenizer.Emitted[16];
+            var buffer = new CircularBuffer<Tokenizer.Emitted>(bufferData, 15);            //passing bufferData here breaks line 88 below
+
+            var s = input.AsZeroTerminatedSpan();
+            var tokenizer = new Tokenizer();
 
             while (true)
             {
-                var (status, chars) = Tokenizer.Next(ref x, ref buffer);
+                var (status, chars) = tokenizer.Next(ref s, ref buffer);
 
                 switch (status)
                 {
@@ -93,7 +95,7 @@ namespace JsonLens.Test
                         while (buffer.Read(out var e)) {
                             output.Add((e.Depth, e.Token));
                         }
-                        x.Span = x.Span.Slice(chars);
+                        s = s.Slice(chars);
                         break;
 
                     case Status.End:
