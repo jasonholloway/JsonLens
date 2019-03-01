@@ -195,10 +195,10 @@ namespace JsonLens.Test
             {
                 switch (inp[i])
                 {
-                    case '\\':      //BUT! what about "\\", eh???
-                        i++;
-                        break;
-
+                    case '\\':      //BUT! what about "\\", eh??? need to lookahead to know what to do
+                        i++;        //which we can't do, as we might be at end of buffer
+                        break;      //if we're at end, then, what? it's like we want to look enter a special mode when we get here
+                                    //or - maybe we have to emit a StringPart and start again
                     case '"':
                         Pop();
                         return Emit(ref outp, 0, i, Token.String, 1);

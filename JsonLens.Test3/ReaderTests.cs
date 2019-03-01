@@ -15,8 +15,7 @@ namespace JsonLens.Test
             public void SimpleString()
                 => Read("\"Hello!!!\"", Select.Any)
                     .ShouldBe(new[] {
-                        (Token.String, ""),
-                        (Token.StringEnd, "Hello!!!")
+                        (Token.String, "Hello!!!")
                     });
 
             [Fact]
@@ -24,10 +23,8 @@ namespace JsonLens.Test
                 => Read("{\"wibble\":\"blah\"}", Select.Any)
                     .ShouldBe(new[] {
                         (Token.Object, ""),
-                        (Token.String, ""),
-                        (Token.StringEnd, "wibble"),
-                        (Token.String, ""),
-                        (Token.StringEnd, "blah"),
+                        (Token.String, "wibble"),
+                        (Token.String, "blah"),
                         (Token.ObjectEnd, "")
                     });
         }
@@ -48,7 +45,6 @@ namespace JsonLens.Test
                     .ShouldBe(new[] {
                         (Token.Object, ""),
                         (Token.String, "hello"),
-                        (Token.StringEnd, ""),
                         (Token.Number, "123"),
                         (Token.ObjectEnd, "")
                     });
@@ -67,7 +63,6 @@ namespace JsonLens.Test
                     .ShouldBe(new[] {
                         (Token.Object, ""),
                         (Token.String, "hello"),
-                        (Token.StringEnd, ""),
                         (Token.Nothing, ""),
                         (Token.ObjectEnd, "")
                     });
@@ -76,47 +71,45 @@ namespace JsonLens.Test
 
 
 
-        static (Token, string)[] Read(string json, Selector selector)
-        {
-            throw new NotImplementedException();
-//            
-//            Span<Tokenizer.Emit> bufferData = stackalloc Tokenizer.Emit[16];
-//            var buffer = new CircularBuffer<Tokenizer.Emit>(bufferData, 15);
-//            
-//            var x = new Reader.Context(
-//                        new Tokenizer.Context(ref json.AsZeroTerminatedSpan(), ref buffer), 
-//                        selector.GetSelectTree());
-//
-//            var output = new List<(Token, string)>();
-//            int index = 0;
-//                                   
-//            while(true)
-//            {
-//                var (status, chars, emit) = Reader.Next(ref x);
-//             
-//                switch(status)
-//                {
-//                    case Status.Ok:
-//                        if(emit.HasValue) {
-//                            var e = emit.Value;
-//                            output.Add((e.Token, json.Substring(index + e.Offset, e.Length)));
-//                        }
-//
-//                        x.TokenizerContext.Span = x.TokenizerContext.Span.Slice(chars);
-//                        index += chars;
-//                        break;
-//
-//                    case Status.End:
-//                        return output.ToArray();
-//
-//                    case Status.Underrun:
-//                        throw new NotImplementedException("UNDERRUN");
-//
-//                    case Status.BadInput:
-//                        throw new NotImplementedException("BADINPUT");
-//
-//                }
-//            }
+        static (Token, string)[] Read(string json, Selector selector) {
+            Span<object> inputData = new object[16];
+            var @in = new CircularBuffer<object>(inputData, 15);
+            
+            Span<object> outputData = new object[16];
+            var @out = new CircularBuffer<object>(outputData, 15);
+            
+            var reader = new Reader(selector.GetSelectTree());
+
+            var output = new List<(Token, string)>();
+            int index = 0;
+                                   
+            while(true)
+            {
+                var (status, chars, emit) = reader.Next(ref @in, ref @out);
+             
+                switch(status)
+                {
+                    case Status.Ok:
+                        if(emit.HasValue) {
+                            var e = emit.Value;
+                            output.Add((e.Token, json.Substring(index + e.Offset, e.Length)));
+                        }
+
+                        @in = @in.Slice(chars);
+                        index += chars;
+                        break;
+
+                    case Status.End:
+                        return output.ToArray();
+
+                    case Status.Underrun:
+                        throw new NotImplementedException("UNDERRUN");
+
+                    case Status.BadInput:
+                        throw new NotImplementedException("BADINPUT");
+
+                }
+            }
         }
 
     }

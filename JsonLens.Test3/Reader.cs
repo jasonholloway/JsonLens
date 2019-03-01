@@ -1,11 +1,14 @@
 ﻿using JsonLens.Test;
 using System;
+using Microsoft.VisualStudio.TestPlatform.Utilities;
 
 namespace JsonLens.Test3
 {
     using Result = ValueTuple<Status, int, Tokenizer.Emitted?>;
+    using Input = CircularBuffer<object>;
+    using Output = CircularBuffer<object>;
     
-    public static class Reader
+    public struct Reader
     {
         public enum Mode
         {
@@ -14,35 +17,45 @@ namespace JsonLens.Test3
             Read,
             Skip
         }
-               
-        public static Result Next(ref Context x)
+        
+        public SelectNode Select;
+        
+        Mode _mode;
+        int _depth;
+        int _moveTill;
+        
+        public Reader(SelectNode select)
         {
-            switch(x.Mode)
+            _mode = Mode.Seek;
+            _depth = 0;
+            _moveTill = 0;
+            Select = select;
+        }
+               
+        public Result Next(ref Input @in, ref Output @out)
+        {
+            switch(_mode)
             {
                 case Mode.SeekProps:
                     //so now I need to delegate to something to be able to match prop names to follow-on strategies
                     //I need a bag of properties!
-
-
-
-
                     throw new NotImplementedException();
 
                 case Mode.Seek:
-                    switch (x.Select.Match)
+                    switch (Select.Match)
                     {
                         case Match.None:
-                            x.Mode = Mode.Skip;
-                            x.MoveTill = x.Depth - 1;
+                            _mode = Mode.Skip;
+                            _moveTill = _depth - 1;
                             return Ok();
 
                         case Match.Any:
-                            x.Mode = Mode.Read;
-                            x.MoveTill = x.Depth - 1;
+                            _mode = Mode.Read;
+                            _moveTill = _depth - 1;
                             return Ok();
 
                         case Match.Object:
-                            var (status, chars, emit) = ReadNext(ref x);
+                            var (status, chars, emit) = ReadNext(ref @in, ref @out);
                             //and now our depth has changed, even without us having committed to reading anything! BEWARE!
                             
                             if (status == Status.Ok && emit.HasValue) 
@@ -51,7 +64,7 @@ namespace JsonLens.Test3
 
                                 if (token == Token.Object)
                                 {
-                                    x.Mode = Mode.Seek;
+                                    _mode = Mode.Seek;
                                     
                                     //so, now we look for Props...
                                     //this is indeed a separate reading mode
@@ -79,20 +92,20 @@ namespace JsonLens.Test3
                     throw new NotImplementedException();
 
                 case Mode.Skip:
-                    if(x.Depth != x.MoveTill) {
-                        return SuppressNext(ref x);    //drive locally: no data to accumulate, just cursor to increment
+                    if(_depth != _moveTill) {
+                        return SuppressNext(ref @in, ref @out);    //drive locally: no data to accumulate, just cursor to increment
                     }
                     else {
-                        x.Mode = Mode.Seek;
+                        _mode = Mode.Seek;
                         return Ok();
                     }
 
                 case Mode.Read:
-                    if(x.Depth != x.MoveTill) {
-                        return ReadNext(ref x);
+                    if(_depth != _moveTill) {
+                        return ReadNext(ref @in, ref @out);
                     }
                     else {
-                        x.Mode = Mode.Seek;
+                        _mode = Mode.Seek;
                         return Ok();
                     }
 
@@ -104,13 +117,13 @@ namespace JsonLens.Test3
             //******************************
         }
 
-        static Result SuppressNext(ref Context x)
+        Result SuppressNext(ref Input @in, ref Output @out)
         {
-            var (status, chars, _) = ReadNext(ref x);
+            var (status, chars, _) = ReadNext(ref @in, ref @out);
             return (status, chars, null);
         }
 
-        static Result ReadNext(ref Context x)
+        Result ReadNext(ref Input @in, ref Output @out)
         {
             throw new NotImplementedException();
             
@@ -119,7 +132,7 @@ namespace JsonLens.Test3
 //
 //            if(status == Status.Ok) { 
 ////                var token = emit.Value.Token;
-////                x.Depth += GetDepthChange(token);
+////                _depth += GetDepthChange(token);
 //            }
 //
 //            return (status, chars, default);
@@ -151,20 +164,6 @@ namespace JsonLens.Test3
 
         public ref struct Context
         {
-            public Tokenizer.Context TokenizerContext;                       
-            public Mode Mode;
-            public SelectNode Select;
-            public int Depth;
-            public int MoveTill;
-            
-            public Context(Tokenizer.Context tokenizerContext, SelectNode select)
-            {
-                TokenizerContext = tokenizerContext;
-                Select = select;
-                Mode = Mode.Seek;
-                Depth = 0;
-                MoveTill = 0;
-            }
 
         }
 
