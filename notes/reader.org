@@ -1,0 +1,451 @@
+Reader
+
+if in SkipMode,
+we need some condition to skip /till/
+
+this condition will (I think) always be one of depth
+we start skipping at a certain point, and we resume our openness to capture when we pop back out the other side
+
+in the case of Props, we would parse all the way to the Prop before consulting the selector?
+
+As it so happens, for purposes of compaction, the Tokenizer signifies Props only implicitly
+which passes a burden of interpretation up the stack; and so more modes are involved in the reader and the binder too...
+
+we should give it a go as is, as the effect might not be as great as we fear; though we should keep this countervailing thought sizzling in the background of course
+
+--------
+
+So the Reader needs its modes... 
+
+SkipMode will be one: in SkipMode, we will want to set a SkipTo depth register
+- but skipping in itself requires a transcendence above the faff of token iteration; ie a preliminary layer is signposted
+
+the skip handler would detect its own token classes, and go up and down em as it wished
+this'd be distinct from the alternate approach of detecting the token first then the mode: the mode should be the first branch
+
+Would we need the depth detection elsewhere? If so, itmight be possible to delegate to a submethod
+
+-------
+
+We start off in MatchMode: we find ourselves with an untraversed stream of tokens ahead of us; and a tree of selectors as yet unclimbed.
+
+So, first of all, we are confronted with a Token. We have to interpret the given token into our world. We have to be aware of our interpretative mode even at this point?
+At every read from below, unless we are to risk retries on underruns (actually not too common given good buffering)
+we're to encode our state and trampoline back up
+but there's some driving that can be done by ourselves at our current layer. As long as we code things so that we don't leave mismatched state in place
+and the ease of testing should prove to us that we haven't done so
+
+So - if modality is to be mostly handled within the specialised handlers, we can break things down like so:
+
+SeekMode: we're looking for something to select
+SkipMode: we're running through till our currently skipped subject is passed
+ReadMode: like SkipMode, except we're passing tokens up till we pass the node
+
+--------
+
+Given SeekMode, we firstly need to know what we're looking for; and secondly we need to look for it.
+
+----
+
+So, we find ourselves suddenly in SeekMode; we check the Selector and we find we're supposed to select None (which appears as a kind of special case here)
+really, the NoneSelector would just be an absence...
+
+It's like the selectors are misstructured: there should be a single Selector type, in which sit different SelectionStrategies
+
+Then, there'd be an empty Selector, and we therefore would select none.
+
+---------
+
+We've misconceived here: Selectors run in parallel, not series; it's not a case of matching one, then another, then another
+we have to be matching against all the possibilities of our current situation
+
+The third part of the strategic context has now been uncovered: the type of node!
+Or even: our path in the tree.
+
+Selectors are to be matched against where we are; what we have in front of us
+- not the token in front of us
+
+There's a preliminary interpretation of the tokens
+Though the tokenizer can't itself do the interpretation, as we want the raw token stream also
+
+We need... <shock!> a parser, that builds paths for us as it goes through.
+Every new prop encountered adds its name to the full path
+
+But, if we're on about skipping remorselessly, we don't need the paths we don't care about
+all we need are the paths we /do/ care about.
+if we care about the child we must care about the parent, and so, if we care about where we are (ie we're in SeekMode) we should always have a path in the context
+
+Such a path would have to be in a Stack, pushed into and popped from
+the PathStack would be full of - what? MVP normal strings: though a more efficient implementation can be imagined via a buffer
+it can't just be Spans, as the tokens of the root props may be long flushed out of memory
+so the choice we have here is between inscribing into an extensible buffer, and just using String (easier, quicker, moving beyond this impl would be opportunity for measurement!)
+
+So, the Reader does its own Path-building, but only when in SeekMode. When in SkipMode and ReadMode, it just keeps tabs on depth.
+
+----------
+
+A good first step would be to do the depth-tracking mechanism
+depth needs tracking in every mode
+every token that's taken in contributes towards it
+
+it's an intermediate layer, then
+but seems more in the scope of the Reader than anything elsewhere
+but if done in the reader, it will have to be done in multiple places
+
+better I think to have the conceptual separation here
+but not the cost of an entirely distinct layer: just a preliminary switching in the Reader please
+
+----------
+
+But, given an Object matcher, what do we do with Line?
+
+Line is in its own kind of limbo state: we want to ultimately support it, and so we're including it from the off so that it's in the mix, so to speak
+yet we want to avoid its complexity!
+
+there's no way we want to have to specify Line in selecting if we're only parsing values...
+
+even if we were in Line mode, we wouldn't want to have to specify Line... we'd just expect an enumeration output
+and the value yielded by each enumeration would be - a parsing, to be individually parsed
+
+but we also want to filter Lines...
+so, only pass through lines that match certain predicates
+however, the evaluation of such predicates would involve the requisite parts of the line being bound...
+and so we could say that, we always want to pass through lines
+
+though there could be inline predicates too
+expressed in the form of a query
+though - the conversion of a query into our own terms would necessarily involve a predicate of exactly the same form, and this predicate would need to be bound...
+
+BUT! the filtering of lines based on predicates doesn't just (on success) return the bound props; instead the entire line is fed through - so the tokens should be read anyway
+
+Predicates on anything require full pass through - well, except for nested selectors
+
+Lines then will always be passed through: even if nothing in the line is selected, thats for the downstream consumer to know what to do with. An empty line still means something, potentially
+
+------------
+
+So, Lines are passed through as elements in an enumeration, but what of arrays?
+these too should be passed through, even if empty?
+
+No, I don't think so...
+well...
+
+what's the case with objects? Well, with objects we have a special Selector, in the Prop selector: this explicitly only takes certain properties
+
+with arrays (and lines) the only distinguisher is value - and that can only be properly interpreted downstream
+
+so array and line elements are always passed through, it seems
+
+predicates on these can be enforced after
+
+-------
+
+So, Lines II:
+
+even if we're in SkipMode, even if we say /Select.None/
+lines should be passed through
+
+Similarly, if we did /Select.Array.None/
+array elements would still be passed through
+
+BUT we don't have array elements: we only have implicit elements
+so if we didn't pass through actual values, we'd need to pass through undefineds
+
+So, Lines too: should they be explicitly marked? Or should we just emit a flat list of values?
+
+-------
+
+I wonder what happens when bad strings are parsed? The tokenizer enforces the syntax.
+
+But on BADINPUT, how do we know where we are? Well, the requisite reader layer will detect the status and offer up its own context
+
+the Tokenizer guarantees the good format of its output stream, the syntactical elisions allowed by this are what we're currently working through
+
+-------
+
+So, should arrays output undefined? I think we need our own kind of 'nothing' token that just means something is there
+that can then be translated to 'undefined' further down the stream
+
+as such, we shouldn't differentiate between Line and Array. Line doesn't need Line and LineEnd, as its implicitly present in all parsings
+the tokenizer will just emit a concatenation of values, which will be interpreted as lines or array values or whatever
+
+-----------
+
+Small little mode changes at the tokenizer level are currently being yielded back up right to the top
+which is, you know, kinda wasteful
+
+in optimising, we will put in local loops here and there, which will look like ugly tumours in the code
+but will make faster - we want measurement in place first though
+
+to support this, we have to confront the problem of rollbacks more generally - maybe if the contexts included some facility for backing-up
+this could be built on at the end though
+
+---------
+
+the selectors then become a mini-language for parsing
+
+-------------
+
+A problem now:
+
+the selector is in the form of a tree, with a generic edge between the leaves. But the edge is different for different strategies;
+and not all of them lead to multiple sub-strategies. There are three kinds of forking strategies: ObjectProps, ArrayElements and LineElements
+
+ObjectProps matches against a set of substrategies, one for each prop we're interested in
+SubClassing and virtual dispatch seems a reasonable endeavour here
+but what would the subclassed methods call?
+
+they'd have free reign over the ReaderContext, presumably, and access to the Tokenizer
+though the Tokenizer requires close management
+
+either way, different strategies yield up different substrategies
+some strategies could be built in: for instance, Skip and Read
+hmmm I dunno: subclassing gives the illusion of freedom where there is none; each and every strategyhas to be closely entwined in the fabric of the Reader
+
+----------
+
+An ObjectStrategy doesn't do much:
+really it is ObjectProps
+
+though if it is Object.All...
+
+Object takes, and has a single downstream Strategy: Props
+
+Props will somehow include a list of substrategies
+Object enters us into the object, but here we may yet choose All or None
+
+Though Object.None seems pointless.
+And Object.All implies already the potential presence of props
+.All makes no sense except as a modality of Props
+
+
+of course, Anything makes sense in the world of present values
+
+and Object makes sense in that world too... but once you have selected(/parsed) Object, you must be selecting something prop-related
+
+------------
+
+so now I need to delegate to something to be able to match prop names to follow-on strategies
+I need a bag of properties!
+but even better: as I want to support case-insensitive matching and stuff like that, it'd seem better to
+delegate to some other piece of code to do this
+
+a strategy should be a kind of coroutine: we tell it what we've got, it says what we should do
+but, given an object, how could the coroutine return back strategies for each property?
+
+well - the ObjectStrategy would itself yield the PropStrategy(wot?)
+
+an ObjectStrategy would be the next Strategy encountered by SeekMode...
+
+the ObjectStrategy would expect to find an Object; if not, it'd Skip
+and if it found an Object, then it'd happily yield back a PropsStrategy, that'd match based on its set prop names and conventions
+
+but! part of my mission here is to prioritise performance
+using virtuals does imply branching, probably many times over
+we want as much as possible to be inlinable
+
+this then means we want our own Strategy lookup table
+and our strategies need some handy way to store their own state: this implies a kind of context
+
+ultimately we will use the efficient string program approach, but till then...
+
+--------------------------------------------------------------------------------------------
+
+each additional bit of a json path, even each individual letter, and each dot, is trie-able.
+
+person[0].name
+^ though, the above is more of an interpretable expression
+
+in the trie, we'd want this:
+
+{IsObject}>{TakeProp person}>{IsArray}>{TakeIndexed 0}>{TakeProp name}
+
+like we're actually building a basic bytecode for a little mini matching environment
+expressions would be precompiled into bytecode
+
+this gives a nice separation of concerns, in that the reader can just be programmed to use our simple bytecode
+
+-----------------------------------------------------------------------------------------------
+
+but we need to know and appreciate how this will be used...
+
+utimately, this will be to populate objects
+
+so, as the code is run through, it should condition what we return from the execution
+ie at every step we finesse (or de-finesse) our context
+   and our findings should be spewed out differently
+
+in binding to objects, we'd delegate to delegates,
+each one precompiled to insert into precisely the right bit of the object structure
+
+the finding of an array property would create a list, for instance,
+then each subsequent value would be added to it
+
+tho, if we're binding to an array, we'd want to only build it to an array as a final step
+or, we'd want a heads up as to the number of elements to be allocated in the array
+that is, we'd have to buffer; but our source spans would be already buffered, effectively
+(as long as they were all in memory - just like our existing strings)
+
+the thing doing the binding should be the site of such logic:
+how should arrays be bound? should we preallocate or what?
+for this, the binder needs to be able to read forwards, within its prescribed context
+
+each nested binder should have its own stream to read, delimited deftly by some protocol or other
+then it could do as it wished; we could have simple strategies and more optimised ones
+
+so each binder would be a parser also
+
+---
+
+tho the delegation or activation of the binders would be dictated by the matcher, which would go to particular sites
+then pass on a streaming interface to each binder; the streaming interface would then be read from internally by the particular binder
+
+so the matcher is the mediator, the delegator and orchestrator
+or rather, this is the Reader
+
+the Reader reads and delegates to a plan, which is a small interpreted program
+
+-------
+
+the binders must live in an array (or - as objects!)
+they /must/ be referenced from the matching code
+
+the Reader will delegate to the appropriate consumer at each stage
+rather, it will pump through the appropriate tokens to the appropriate consumers
+
+and do the different binders need separate buffers? can't we rely on them yielding at appropriate points?
+
+so, in which case, the Reader will match properties to the correct processor
+the processor will take up the reins, and chug through as it can, but yielding at the appropriate point
+
+but what will it yield to? the Reader again, the manager of the interstices
+
+{ person: { name: 'jason' } }
+
+bindOne
+  readLine
+  readObject
+  readProp 'person' bindPerson
+    
+bindPerson
+  newObj
+  readProp 'name'
+  
+shades of eval/apply
+
+so, /bind/ runs first of all,
+and to do its job, it reads from @in till
+it goes pop
+and what's more, it further delegates to other machines
+in its parsing
+
+all the little yielding machines have /state/ and exist on a stack
+so their states are saved, ready to resume when the stream flows once more
+
+but they are multifarious... a single array of data can't hold them
+transient ghouls, but deterministically disappearing from view
+
+there are all these little bits of state, but they shouldn't exist on the heap
+
+each type of machine could have its own array; but this messes with locality
+
+we want everything to be as near as possible to its previous step; so, a linear piling up of frames
+but this requires strange reinterpretation into a structure...
+
+say we just had a flat allocation of bytes
+which could be cast into spans of structs
+
+the problem with this lovely vision is that we have GC roots about,
+references to delegates to do actual arbitrary construction
+
+their could be an auxiliary list of delegates referenced by id
+
+--
+
+if our multifarious stack of machine states were to work, we'd have to go either by reference or by union
+
+the union approach seems like it'd be kinda difficult to achieve
+
+or, different states could be serialized/deserialized from a list of bytes;
+
+the list of bytes would be the overall state;
+as each machine took over, it would deserialize from the mound into the actual type-protected stack
+and do its computation
+
+not too keen on the copying here
+
+if it were a union, how would we know which fields to use?
+there'd be an identifier enum and a switch, exactly if it were an object, but without the GC
+
+--
+
+so, unions of little machines: this seems reasonable
+
+each machine would have its enum value, and the fields it needed to use
+we'd just have to make sure all these fields were properly laid out to all be available
+
+---
+
+so, we'd start off at a generic starting point: the intent of the included program wouldn't have to be represented in the meaning of this first function,
+as it would be in its nature to delegate to its innards; it'd be its determinate identity, ie no encapsulation, only contextualization of ts subsequents;
+like it plays its proper part, then immediately delegates to its successors so that all can speak their truth
+
+so, most generic of all: START
+
+/Start/ would be the initial program, the first step for all eventualities, and also the initial frame of state
+
+Start
+  Interpret first read command (which itself is taken from a kind of buffer)
+  
+--
+
+starting from testing...
+
+should start by specifying simple programs, and simplish inputs: see what we get out
+
+finally, we'll do the translation from nicely-expressed queries to programs; but first, /programs/.
+
+---
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

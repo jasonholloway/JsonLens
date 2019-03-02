@@ -72,6 +72,7 @@ namespace JsonLens.Test
 
 
         static (Token, string)[] Read(string json, Selector selector) {
+            
             Span<object> inputData = new object[16];
             var @in = new CircularBuffer<object>(inputData, 15);
             
