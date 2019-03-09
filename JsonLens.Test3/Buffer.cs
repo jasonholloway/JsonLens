@@ -1,8 +1,8 @@
 using System;
 
-namespace JsonLens.Test {
-    
-    public ref struct CircularBuffer<T> 
+namespace JsonLens.Test 
+{
+    public ref struct Buffer<T> 
     {
         readonly Span<T> _data;
         readonly int _mask;
@@ -10,7 +10,7 @@ namespace JsonLens.Test {
         int _cursor;
         int _charge;
         
-        public CircularBuffer(Span<T> data, int mask) {
+        public Buffer(Span<T> data, int mask) {
             _data = data;
             _mask = mask;
             _cursor = 0;

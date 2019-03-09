@@ -1,45 +1,80 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using JsonLens.Test;
 using Xunit;
 
-namespace JsonLens.Test3 {
-    
+namespace JsonLens.Test3 
+{
     
     public enum Mode: byte {
-        Start,
+        Dump,
         ReadObject,
-        BindLine,
-        ReadLine,
         MatchProps,
         ReadAll
     }
     
-    public struct Frame {
-        public readonly Mode Type;
-
-        public Frame(Mode type) {
-            Type = type;
-        }
+    public enum Signal {
+        End,
+        Underrun
     }
 
+    public enum Stream {
+        Ops,
+        In,
+        Tokens,
+        Out1,
+        Out2
+    }
 
-    public class Machine
+    public class Machine 
     {
-        Stack<Frame> _frames = new Stack<Frame>();
+        Stack<Op> _ops = new Stack<Op>();
+        Tokenizer _tokenizer = new Tokenizer(Tokenizer.Mode.Line);
 
-        public int? Next(ref CircularBuffer<Tokenizer.Emitted> @in, ref CircularBuffer<Op> ops) { //no need for circular buffer; just need read-only list thing
-            var frame = _frames.Peek();
+        public (Signal, Stream) Next(ref Readable<Op> ops, ref Readable<char> @in, ref Buffer<Tokenized> tokens, ref Buffer<char> @out)
+        {
+            if (!ops.Read(out var op)) return (Signal.Underrun, Stream.Ops);
 
-            switch (frame.Type) {
-                case Mode.Start:
-                    if (ops.Read(out var op)) {
-                        _frames.Push(new Frame(op.Type));
-                        return null;
-                    }
-                    return null;
+            switch (op.Type) {
+                case Mode.Dump:
+                    //dumping just reads out entirely to the output
+                    //but, for this, we need to know the scope of the input to read from
+                    //ie, ReadObject will be handled, and then we may want to read everything in it till the end
+                    //well, we've been here already: we read ahead till the depth comes back down to our level
+                    
+                    //question again of how to take tokens from tokenizer;
+                    //the problem of where to buffer the bloody things...
+                    //instead of having a fixed buffer everywhere, it makes more sense to have one-by-one yielding, each one handled here
+                    //but, if we want to skip, then the tokenizer should be able to skip to the proper part
+                    //in this case, the tokenizer itself doesn't have to yield depths...
+                    //it can just track thm itself
+                    //but it does yield them
+                    
+                    //so, how can we progress with the buffer in place?
+                    //we'd have a Readable of tokens, not managed as part of the machine here, but separately
+                    //there'd then be an ulterior machine, that fielded signals from the Reader and Binder
+                    //the Reader would tokenize into a buffer; the Binder would do whatever it bloody well liked
+                    //but at the cost of copying into intermediate memory repeatedly
+                    
+                    //otherwise, the tokenizer lives here and yields each token upwards to be immediately handled
+                    //so, for each token read there'd be a check, and the Tokenizer would move forwards, always updating its state
+                    //and the token would be immediately returned to update the state of our thingy here
+                    
+                    //in the case of skipping, the tokenizer can go into a more efficient mode that just skims till it finds the requisite depth returned
+                    //which sounds nice doesn't it
+                    //a big stateful structure of machines that proceeds as it reads
+                    
+                    
+                    throw new NotImplementedException();
 
                 case Mode.ReadObject:
+                    _tokenizer.Next(@in, default);
+                    
+                    //so the machine itself has its buffer of tokens
+                    //which are written into here
+                    //ReadObject reads tokens into its buffer,forever...
+                    
                     //we're in the mood for taking an object
                     //if what we have isn't an object (say, a number or a string) then skip it
                     throw new NotImplementedException();
@@ -55,73 +90,112 @@ namespace JsonLens.Test3 {
             
             throw new NotImplementedException();
         }
-        
     }
     
-    public struct Op {
+    public struct Op
+    {
         public readonly Mode Type;
+        public readonly int SinkId;
 
-        public Op(Mode type) {
+        public Op(Mode type, int sinkId) {
             Type = type;
+            SinkId = sinkId;
         }
+
+        public static Op DumpTo(int sinkId)
+            => new Op(Mode.Dump, sinkId);
 
         public static Op ReadAll()
-            => new Op();
+            => new Op(Mode.ReadAll, 0);
 
         public static Op ReadObject()
-            => new Op();
+            => new Op(Mode.ReadObject, 0);
 
         public static Op MatchProps(params (string, int)[] matches)
-            => new Op();
+            => new Op(Mode.MatchProps, 0);
     }
-
     
-    public class MachineTests {
-        
+    
+    public class MachineTests
+    {
         [Fact]
-        public void BlahBlah() {
-            var @in = "{\"Wibble\":123}".AsZeroTerminatedSpan();
-            var inBuffer = new CircularBuffer<char>(@in, 15);
+        public void BlahBlah() 
+        {
+            var @in = new Readable<char>(
+                "{\"Wibble\":123}".AsZeroTerminatedSpan()
+            );
+            
+            var ops = new Readable<Op>(new[] {
+                Op.ReadObject(),
+                Op.DumpTo(0)
+            });
+            
+            var tokenData = new Tokenized[16];
+            var tokens = new Buffer<Tokenized>(tokenData, 15);
+
+            var charData = new char[16];
+            var @out = new Buffer<char>(charData, 15);
             
             var machine = new Machine();
-            var ops = new[] {
-                Op.ReadObject(),                                  //assert '{', delegate, assert '}'
-                Op.MatchProps(("Wibble", 0), ("Krrrumpt", 1)),    //read each prop, match to trie, delegate via jump
-                Op.ReadObject(),
-                Op.MatchProps(("Meep!", 0)),
-                Op.ReadAll()
-            };
             
-            //what would we output here?
-            //it'd be up to the machines...
-            //ops shouldn't themselves have references
-            //but should point to somewhere, say an id of an output buffer, or an id of a binder
-            //most simply, an Op.ReadAll should copy raw string out to a contextual buffer
-            //this would be our starting point
-            //(we could test to make sure the right bits were being extracted)
-            
-            //but even in the output buffer, there is the possibility (or, the necessity)
-            //of returning signals informing our host to flush the buffer before
-            //we can continue
-            
-            //the entire program needs to be run with signals in mind
-            //so, every machine, as it runs, is given an opportunity to return (nothing runs in parallel, so each and every machine can return directly to the runner)
-            //the signal returned must relate to whichever buffers are being read from/into
-            //ReadAll will output into a particular buffer, but maybe other ops (especially those contextually binding into an object graph)
-            
-            //i mean, maybe there should be a definable language between ops and runner...
-            //but then the runner wouldn't be generic
-            //well, it would be... kinda
-            //the idea of keeping the ops non-referrin gis nice however
-            //resources should be managed by the runner
-            //(contextual nested binding? the binding machines would output a language to the runner, which would run constructors etc as bidden)
+            Write(ref tokens,
+                (0,  0, 0, Token.Object),
+                (1,  2, 6, Token.String),
+                (1, 10, 3, Token.Number),
+                (0, 13, 1, Token.ObjectEnd),
+                (0,  0, 0, Token.End));
 
-            machine.Next(ref @in, default);
+            while (true) {
+                var (signal, bufferTag) 
+                    = machine.Next(ref ops, ref @in, ref tokens, ref @out);
+                
+                switch (signal) {
+                    case Signal.End:
+                        return;
+                    
+                    case Signal.Underrun:
+                        switch (bufferTag) {
+                            case Stream.Ops:
+                                //load more ops here (should just be simple readable interface)
+                                throw new NotImplementedException();
+                            
+                            case Stream.In:
+                                //read more chars into buffer and carry on
+                                //and if we have to wait, then... we can wait at this top level
+                                throw new NotImplementedException();
+                            
+                            case Stream.Tokens:
+                                //token underrun shouldn't be handled here, like
+                                throw new NotImplementedException();
+                            
+                            case Stream.Out1:
+                                //this is the first output buffer
+                                //how would this level cope with this? higher level contexts should bind to this
+                                throw new NotImplementedException();
+                            
+                            case Stream.Out2:
+                                //second output buffer
+                                throw new NotImplementedException();
+                           
+                            default:
+                                throw new NotImplementedException();
+                        }
+                }
+            }
         }
+        
+        static void Write<T>(ref Buffer<T> buff, params T[] vals) {
+            foreach (var v in vals) {
+                Assert.True(buff.Write(v));
+            }
+        }
+
+        static void Write(ref Buffer<Tokenized> buff, params (int depth, int offset, int length, Token token)[] tokens)
+            => Write(ref buff, tokens.Select(t => 
+                                            new Tokenized(t.depth, t.offset, t.length, t.token)
+                                        ).ToArray());
+        
+        
     }
-    
-    
-    
-    
     
 }

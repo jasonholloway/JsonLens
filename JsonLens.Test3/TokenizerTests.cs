@@ -129,8 +129,8 @@ namespace JsonLens.Test
             var output = new List<(Token, string)>();
             int offset = 0;
 
-            Span<Tokenizer.Emitted> bufferData = new Tokenizer.Emitted[16]; //wish stackalloc would work here...
-            var buffer = new CircularBuffer<Tokenizer.Emitted>(bufferData, 15);
+            Span<Tokenized> bufferData = new Tokenized[16]; //wish stackalloc would work here...
+            var buffer = new Buffer<Tokenized>(bufferData, 15);
 
             var s = input.AsZeroTerminatedSpan();
             var tokenizer = new Tokenizer(Tokenizer.Mode.Line);

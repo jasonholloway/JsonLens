@@ -74,10 +74,10 @@ namespace JsonLens.Test
         static (Token, string)[] Read(string json, Selector selector) {
             
             Span<object> inputData = new object[16];
-            var @in = new CircularBuffer<object>(inputData, 15);
+            var @in = new Buffer<object>(inputData, 15);
             
             Span<object> outputData = new object[16];
-            var @out = new CircularBuffer<object>(outputData, 15);
+            var @out = new Buffer<object>(outputData, 15);
             
             var reader = new Reader(selector.GetSelectTree());
 
@@ -95,8 +95,8 @@ namespace JsonLens.Test
                             var e = emit.Value;
                             output.Add((e.Token, json.Substring(index + e.Offset, e.Length)));
                         }
-
-                        @in = @in.Slice(chars);
+                        
+                        //@in = @in.Slice(chars);
                         index += chars;
                         break;
 

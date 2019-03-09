@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using JsonLens.Test3;
 
 namespace JsonLens.Test
 {
     using Result = ValueTuple<Status, int>;
-    using Outp = CircularBuffer<Tokenizer.Emitted>;
+    using Outp = Buffer<Tokenized>;
     using Inp = ReadOnlySpan<char>;
     
     public struct Tokenizer
@@ -38,7 +37,7 @@ namespace JsonLens.Test
             => _depth--;
 
         Result Emit(ref Outp output, int before, int length, Token token, int after = 0)
-            => output.Write(new Emitted(_depth, before, length, token))
+            => output.Write(new Tokenized(_depth, before, length, token))
                 ? Ok(before + length + after)
                 : Underrun;
         
@@ -243,21 +242,6 @@ namespace JsonLens.Test
             => (Status.BadInput, 0);
 
         
-        public struct Emitted
-        {
-            public readonly int Depth;
-            public readonly int Offset;
-            public readonly Token Token;
-            public readonly int Length;
-
-            public Emitted(int depth, int offset, int length, Token token)
-            {
-                Depth = depth;
-                Offset = offset;
-                Length = length;
-                Token = token;
-            }
-        }
 
         public ref struct Context
         {
@@ -303,6 +287,22 @@ namespace JsonLens.Test
         Undefined,
         Null,
         Nothing
+    }
+    
+    public struct Tokenized
+    {
+        public readonly int Depth;
+        public readonly int Offset;
+        public readonly Token Token;
+        public readonly int Length;
+
+        public Tokenized(int depth, int offset, int length, Token token)
+        {
+            Depth = depth;
+            Offset = offset;
+            Length = length;
+            Token = token;
+        }
     }
 
 }

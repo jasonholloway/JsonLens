@@ -1,12 +1,11 @@
 ﻿using JsonLens.Test;
 using System;
-using Microsoft.VisualStudio.TestPlatform.Utilities;
 
 namespace JsonLens.Test3
 {
-    using Result = ValueTuple<Status, int, Tokenizer.Emitted?>;
-    using Input = CircularBuffer<object>;
-    using Output = CircularBuffer<object>;
+    using Result = ValueTuple<Status, int, Tokenized?>;
+    using Input = Buffer<object>;
+    using Output = Buffer<object>;
     
     public struct Reader
     {

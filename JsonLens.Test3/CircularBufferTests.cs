@@ -10,7 +10,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void CanWriteAndRead() {
             Span<int> data = stackalloc int[8];
-            var buffer = new CircularBuffer<int>(data, 7);
+            var buffer = new Buffer<int>(data, 7);
 
             buffer.Write(1);
 
@@ -21,7 +21,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void MultiWritesAndReads() {
             Span<int> data = stackalloc int[8];
-            var buffer = new CircularBuffer<int>(data, 7);
+            var buffer = new Buffer<int>(data, 7);
 
             buffer.Write(1).ShouldBeTrue();
             buffer.Write(2).ShouldBeTrue();
@@ -40,7 +40,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void ReadingPastWrite_ReturnsFalse() {
             Span<int> data = stackalloc int[2];
-            var buffer = new CircularBuffer<int>(data, 1);
+            var buffer = new Buffer<int>(data, 1);
 
             buffer.Write(1);
             
@@ -51,7 +51,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void CantWriteAfterFillingBuffer() {
             Span<int> data = stackalloc int[2];
-            var buffer = new CircularBuffer<int>(data, 1);
+            var buffer = new Buffer<int>(data, 1);
 
             buffer.Write(1).ShouldBeTrue();
             buffer.Write(2).ShouldBeTrue();
@@ -61,7 +61,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void ReadingAndWritingLoop() {
             Span<int> data = stackalloc int[2];
-            var buffer = new CircularBuffer<int>(data, 1);
+            var buffer = new Buffer<int>(data, 1);
 
             buffer.Write(1);
             buffer.Write(2);
@@ -88,7 +88,7 @@ namespace JsonLens.Test3 {
         [Fact]
         public void BlahBlah1() {
             Span<int> data = stackalloc int[4];
-            var buffer = new CircularBuffer<int>(data, 3);
+            var buffer = new Buffer<int>(data, 3);
 
             buffer.Write(1);
             
@@ -116,10 +116,10 @@ namespace JsonLens.Test3 {
         }
 
         ref struct Container {
-            CircularBuffer<int> _buffer;
+            Buffer<int> _buffer;
 
             public Container(Span<int> data, int mask) {
-                _buffer = new CircularBuffer<int>(data, mask);
+                _buffer = new Buffer<int>(data, mask);
             }
 
             public void Write(int i)

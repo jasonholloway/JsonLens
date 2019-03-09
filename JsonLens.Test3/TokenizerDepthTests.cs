@@ -79,8 +79,8 @@ namespace JsonLens.Test
         {
             var output = new List<(int, Token)>();
 
-            Span<Tokenizer.Emitted> bufferData = new Tokenizer.Emitted[16];
-            var buffer = new CircularBuffer<Tokenizer.Emitted>(bufferData, 15);            //passing bufferData here breaks line 88 below
+            Span<Tokenized> bufferData = new Tokenized[16];
+            var buffer = new Buffer<Tokenized>(bufferData, 15);            //passing bufferData here breaks line 88 below
 
             var s = input.AsZeroTerminatedSpan();
             var tokenizer = new Tokenizer();
