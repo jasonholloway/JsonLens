@@ -69,7 +69,7 @@ namespace JsonLens.Test3
                     throw new NotImplementedException();
 
                 case Mode.ReadObject:
-                    _tokenizer.Next(@in, default);
+//                    _tokenizer.Next(@in, default);
                     
                     //so the machine itself has its buffer of tokens
                     //which are written into here
@@ -139,11 +139,11 @@ namespace JsonLens.Test3
             var machine = new Machine();
             
             Write(ref tokens,
-                (0,  0, 0, Token.Object),
-                (1,  2, 6, Token.String),
-                (1, 10, 3, Token.Number),
-                (0, 13, 1, Token.ObjectEnd),
-                (0,  0, 0, Token.End));
+                (0,  0, Token.Object),
+                (2,  6, Token.String),
+                (10, 3, Token.Number),
+                (13, 1, Token.ObjectEnd),
+                (0,  0, Token.End));
 
             while (true) {
                 var (signal, bufferTag) 
@@ -190,9 +190,9 @@ namespace JsonLens.Test3
             }
         }
 
-        static void Write(ref Buffer<Tokenized> buff, params (int depth, int offset, int length, Token token)[] tokens)
+        static void Write(ref Buffer<Tokenized> buff, params (int offset, int length, Token token)[] tokens)
             => Write(ref buff, tokens.Select(t => 
-                                            new Tokenized(t.depth, t.offset, t.length, t.token)
+                                            new Tokenized(t.offset, t.length, t.token)
                                         ).ToArray());
         
         

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 namespace JsonLens.Test
 {
-    using Result = ValueTuple<Status, int>;
     using Outp = Buffer<Tokenized>;
     using Inp = ReadOnlySpan<char>;
     
@@ -11,14 +10,10 @@ namespace JsonLens.Test
     {        
         Mode _mode;
         Stack<Mode> _modes;
-        int _depth;
-        int _offset;
 
         public Tokenizer(Mode mode) {
             _mode = mode;
             _modes = new Stack<Mode>();
-            _depth = 0;
-            _offset = 0;
         }
 
         void Switch(Mode mode)
@@ -30,194 +25,192 @@ namespace JsonLens.Test
         void Pop()
             => Switch(_modes.Pop());
 
-        void IncreaseDepth()
-            => _depth++;
 
-        void DecreaseDepth()
-            => _depth--;
-
-        Result Emit(ref Outp output, int before, int length, Token token, int after = 0)
-            => output.Write(new Tokenized(_depth, before, length, token))
-                ? Ok(before + length + after)
-                : Underrun;
-        
-        
-        public Result Next(ref Inp @in, ref Outp @out)
+        public Status Next(ref Readable<char> @in, out Tokenized @out)
         {
-            if(@in.Length == 0) { //should just try reading, surely...
-                return Underrun;
+            start:
+            
+            if(@in.IsEmpty) { //should just try reading, surely...
+                return Underrun(out @out);
             }
+            
+            char current = @in.Peek;
 
-            if(_mode != Mode.String && IsWhitespace(@in[0])) {
-                return SkipWhitespace(ref @in);
+            if(_mode != Mode.String && IsWhitespace(current)) {
+                SkipWhitespace(ref @in);
+                goto start;
             }
 
             //stupid edge case
             //of line feed without the carriage return
             //requires look-ahead
 
-            char current = @in[0];
-
             switch(_mode)
             {
                 case Mode.Line:
-                    if (current == 0) {
-                        Switch(Mode.End);
-                        return Ok();
+                    if (current == 0) {    //shouldn't we just, you know, return the signal here... 
+                        @in.Move();
+                        return End(out @out);
                     }
                     else {
                         Push(Mode.LineEnd);
                         Switch(Mode.Value);
-                        return Ok();
+                        goto start;
                     }
 
                 case Mode.LineEnd:
                     if (current == 0) {
-                        Switch(Mode.End);
-                        return Ok();
+                        @in.Move();
+                        return End(out @out);
                     }
 
                     throw new NotImplementedException("Handle line break?");
 
-                case Mode.End:
-                    return End;
-
                 case Mode.Value:
                     switch(current) {
                         case '"':
+                            @in.Move();
                             Switch(Mode.String);
-                            return Ok(1);
+                            goto start;
                             
-                        case char c when IsNumeric(c):
-                            return ReadNumber(ref @in, ref @out);
-
                         case '{':
+                            @in.Move();
                             Switch(Mode.Object1);
-                            return Emit(ref @out, 1, 0, Token.Object);
+                            return Emit(out @out, 1, 0, Token.Object);
 
                         case '[':
+                            @in.Move();
                             Switch(Mode.Array1);
-                            return Emit(ref @out, 1, 0, Token.Array);
+                            return Emit(out @out, 1, 0, Token.Array);
+                            
+                        case char c when IsNumeric(c):
+                            return ReadNumber(ref @in, out @out);
                     }
                     break;
 
                 case Mode.Object1:
-                    IncreaseDepth();
                     switch (current) {
                         case '}':
+                            @in.Move();
                             Pop();
-                            DecreaseDepth();
-                            return Emit(ref @out, 1, 0, Token.ObjectEnd);
+                            return Emit(out @out, 1, 0, Token.ObjectEnd);
 
                         case '"':
+                            @in.Move();
                             Push(Mode.Object2);
                             Switch(Mode.String);
-                            return Ok(1);
+                            goto start;
                     }
                     break;
                 
                 case Mode.Object2:
                     switch(current) {
                         case ':':
+                            @in.Move();
                             Push(Mode.Object3);
                             Switch(Mode.Value);
-                            return Ok(1);
+                            goto start;
                     }
                     break;
                 
                 case Mode.Object3:
                     switch (current) {
                         case ',':
+                            @in.Move();
                             Switch(Mode.Object1);
-                            return Ok(1);
+                            goto start;
+                            
                         case '}':
+                            @in.Move();
                             Pop();
-                            DecreaseDepth();
-                            return Emit(ref @out, 1, 0, Token.ObjectEnd);
+                            return Emit(out @out, 1, 0, Token.ObjectEnd);
                     }
                     break;
                 
                 case Mode.Array1:
-                    IncreaseDepth();
                     switch(current) {
                         case ']':
+                            @in.Move();
                             Pop();
-                            DecreaseDepth();
-                            return Emit(ref @out, 1, 0, Token.ArrayEnd);
+                            return Emit(out @out, 1, 0, Token.ArrayEnd);
 
                         default:
                             Push(Mode.Array2);
                             Switch(Mode.Value);
-                            return Ok();
+                            goto start;
                     }
 
                 case Mode.Array2:
                     switch (current) {
                         case ']':
+                            @in.Move();
                             Pop();
-                            DecreaseDepth();
-                            return Emit(ref @out, 1, 0, Token.ArrayEnd);
+                            return Emit(out @out, 1, 0, Token.ArrayEnd);
 
                         case ',':
+                            @in.Move();
                             Switch(Mode.Array1);
-                            return Ok(1);
+                            goto start;
                     }
                     break;
 
                 case Mode.String:
-                    return ReadString(ref @in, ref @out);
+                    return ReadString(ref @in, out @out);
             }
             
-            return BadInput;
+            return BadInput(out @out);
         }
 
 
-        Result ReadNumber(ref Inp inp, ref Outp outp)
-        {
-            for(int i = 1; i < inp.Length; i++)
+        Status ReadNumber(ref Readable<char> @in, out Tokenized @out) {
+            int start = @in.Offset;
+            @in.Move();
+
+            for(; !@in.AtEnd; @in.Move())
             {
-                if (!IsNumeric(inp[i]))
-                {
+                if (!IsNumeric(@in.Peek)) {
                     Pop();
-                    return Emit(ref outp, 0, i, Token.Number);
+                    int len = @in.Offset - start;
+                    return Emit(out @out, start, len, Token.Number);
                 }
             }
 
-            return Underrun;
+            return Underrun(out @out);
         }
 
-        Result ReadString(ref Inp inp, ref Outp outp)
-        {
-            int i = 0;
+        Status ReadString(ref Readable<char> @in, out Tokenized @out) {
+            int start = @in.Offset;
 
-            for (; i < inp.Length; i++)
-            {
-                switch (inp[i])
+            for (; !@in.AtEnd; @in.Move()) {
+                switch (@in.Peek)
                 {
+                    //below should do another move(), but checking to see if empty...
                     case '\\':      //BUT! what about "\\", eh??? need to lookahead to know what to do
-                        i++;        //which we can't do, as we might be at end of buffer
+                        @in.Move(); //which we can't do, as we might be at end of buffer
                         break;      //if we're at end, then, what? it's like we want to look enter a special mode when we get here
                                     //or - maybe we have to emit a StringPart and start again
                     case '"':
+                        int length = @in.Offset - start;
+                        @in.Move();
                         Pop();
-                        return Emit(ref outp, 0, i, Token.String, 1);
+                        return Emit(out @out, start, length, Token.String);
                 }
             }
-
+            
             //x.Emit(Token.StringPart, 0, i);  //but only if i > 1...!
-            return Underrun;
+            return Underrun(out @out);
         }
 
-        Result SkipWhitespace(ref Inp inp) {
+        void SkipWhitespace(ref Readable<char> @in) {
             int i = 0;
-                
-            for (; i < inp.Length; i++)
-            {
-                if (!IsWhitespace(inp[i]))
+            var data = @in.Data;
+
+            for (; i < data.Length; i++) {
+                if (!IsWhitespace(data[i]))
                     break;
             }
 
-            return Ok(i);
+            @in.Move(i);
         }
 
         
@@ -227,20 +220,31 @@ namespace JsonLens.Test
         static bool IsWhitespace(char c)
             => c == ' '; //more to add!
 
-        Result Ok(int chars = 0) {
-            _offset += chars;
-            return (Status.Ok, chars);
+//        Result Ok(out Tokenized @out, int chars = 0) {
+//            _offset += chars;
+//            @out = default; //but there needs to be some way of signalling that there's no token returned... BUT why are we even yielding, if there's no token, and no signal?
+//            return (Status.Ok, chars);
+//        }
+
+        Status Emit(out Tokenized @out, int before, int length, Token token) {
+            @out = new Tokenized(before, length, token);
+            return Status.Ok;
         }
 
-        static Result Underrun
-            => (Status.Underrun, 0);
+        static Status Underrun(out Tokenized @out)
+            => Signal(out @out, Status.Underrun);
 
-        static Result End
-            => (Status.End, 0);
+        static Status End(out Tokenized @out)
+            => Signal(out @out, Status.End);
 
-        static Result BadInput
-            => (Status.BadInput, 0);
+        static Status BadInput(out Tokenized @out)
+            => Signal(out @out, Status.BadInput);
 
+        static Status Signal(out Tokenized @out, Status status) {
+            @out = default;
+            return status;
+        }
+        
         
 
         public ref struct Context
@@ -255,7 +259,6 @@ namespace JsonLens.Test
             Value,
             String,
             LineEnd,
-            End,
             Object2,
             Object3,
             Array2,
@@ -291,14 +294,12 @@ namespace JsonLens.Test
     
     public struct Tokenized
     {
-        public readonly int Depth;
         public readonly int Offset;
         public readonly Token Token;
         public readonly int Length;
 
-        public Tokenized(int depth, int offset, int length, Token token)
+        public Tokenized(int offset, int length, Token token)
         {
-            Depth = depth;
             Offset = offset;
             Length = length;
             Token = token;

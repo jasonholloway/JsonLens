@@ -129,25 +129,25 @@ namespace JsonLens.Test
             var output = new List<(Token, string)>();
             int offset = 0;
 
-            Span<Tokenized> bufferData = new Tokenized[16]; //wish stackalloc would work here...
-            var buffer = new Buffer<Tokenized>(bufferData, 15);
-
             var s = input.AsZeroTerminatedSpan();
+            var @in = new Readable<char>(s);
+            
             var tokenizer = new Tokenizer(Tokenizer.Mode.Line);
+            Tokenized @out;
 
             while (true)
             {
-                var (status, chars) = tokenizer.Next(ref s, ref buffer);
-
+                var status = tokenizer.Next(ref @in, out @out);
                 switch (status)
                 {
                     case Status.Ok:
-                        while (buffer.Read(out var e)) {
-                            output.Add((e.Token, input.Substring(offset + e.Offset, e.Length)));
-                        }
+                        output.Add((@out.Token, input.Substring(offset + @out.Offset, @out.Length)));
+                        //offset here should be taken directly from the readable...
+                        //then it's up to the supplier of the readable (ie the context) to
+                        //marry both up
                         
-                        s = s.Slice(chars);
-                        offset += chars;
+                        //so... the readable needs to tell us its offset
+                        
                         break;
 
                     case Status.End:

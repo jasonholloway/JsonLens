@@ -409,6 +409,51 @@ finally, we'll do the translation from nicely-expressed queries to programs; but
 
   
 
+so, the amazing vision...
+
+at each buffer, a machine reads/writes, switches between states
+
+the buffer of ops is itself, /obviously/, a buffer
+
+the ops are read by a machine that pushes them onto a stack, and pops em as fit
+
+----------------
+
+OpReader
+
+takes an op, and...
+
+------------------------------------------------------
+
+
+Tokenizer should yield only when it has something to yield,
+otherwise it recurses in till it finds a token (this is bounded)
+
+but to do this, its reading needs to be tracked
+
+currently it returns the numbers of characters read with its signal
+but this relies on there being a single, special readable
+
+1) should read from a Readable<char>, which wraps a span, and facilitates peeking, underruns, etc
+2) should never yield without a signal - no more blank Oks! instead, recurse
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
