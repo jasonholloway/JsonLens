@@ -140,7 +140,7 @@ namespace JsonLens.Test
                 var status = tokenizer.Next(ref @in, out @out);
                 switch (status)
                 {
-                    case Status.Ok:
+                    case Signal.Ok:
                         output.Add((@out.Token, input.Substring(offset + @out.Offset, @out.Length)));
                         //offset here should be taken directly from the readable...
                         //then it's up to the supplier of the readable (ie the context) to
@@ -150,13 +150,13 @@ namespace JsonLens.Test
                         
                         break;
 
-                    case Status.End:
+                    case Signal.End:
                         return output.ToArray();
 
-                    case Status.Underrun:
+                    case Signal.Underrun:
                         throw new NotImplementedException("UNDERRUN");
 
-                    case Status.BadInput:
+                    case Signal.BadInput:
                         throw new NotImplementedException("BADINPUT");
                 }
             }

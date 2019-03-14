@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using JsonLens.Test3;
 
 namespace JsonLens.Test
 {
@@ -26,7 +27,7 @@ namespace JsonLens.Test
             => Switch(_modes.Pop());
 
 
-        public Status Next(ref Readable<char> @in, out Tokenized @out)
+        public Signal Next(ref Readable<char> @in, out Tokenized @out)
         {
             start:
             
@@ -162,7 +163,7 @@ namespace JsonLens.Test
         }
 
 
-        Status ReadNumber(ref Readable<char> @in, out Tokenized @out) {
+        Signal ReadNumber(ref Readable<char> @in, out Tokenized @out) {
             int start = @in.Offset;
             @in.Move();
 
@@ -178,7 +179,7 @@ namespace JsonLens.Test
             return Underrun(out @out);
         }
 
-        Status ReadString(ref Readable<char> @in, out Tokenized @out) {
+        Signal ReadString(ref Readable<char> @in, out Tokenized @out) {
             int start = @in.Offset;
 
             for (; !@in.AtEnd; @in.Move()) {
@@ -226,21 +227,21 @@ namespace JsonLens.Test
 //            return (Status.Ok, chars);
 //        }
 
-        Status Emit(out Tokenized @out, int before, int length, Token token) {
+        Signal Emit(out Tokenized @out, int before, int length, Token token) {
             @out = new Tokenized(before, length, token);
-            return Status.Ok;
+            return Signal.Ok;
         }
 
-        static Status Underrun(out Tokenized @out)
-            => Signal(out @out, Status.Underrun);
+        static Signal Underrun(out Tokenized @out)
+            => Return(out @out, Signal.Underrun);
 
-        static Status End(out Tokenized @out)
-            => Signal(out @out, Status.End);
+        static Signal End(out Tokenized @out)
+            => Return(out @out, Signal.End);
 
-        static Status BadInput(out Tokenized @out)
-            => Signal(out @out, Status.BadInput);
+        static Signal BadInput(out Tokenized @out)
+            => Return(out @out, Signal.BadInput);
 
-        static Status Signal(out Tokenized @out, Status status) {
+        static Signal Return(out Tokenized @out, Signal status) {
             @out = default;
             return status;
         }
@@ -265,13 +266,6 @@ namespace JsonLens.Test
         }
     }
 
-    public enum Status : byte
-    {
-        Ok,
-        Underrun,
-        End,
-        BadInput
-    }
 
     public enum Token : byte
     {

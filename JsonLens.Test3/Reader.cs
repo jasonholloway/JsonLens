@@ -3,7 +3,7 @@ using System;
 
 namespace JsonLens.Test3
 {
-    using Result = ValueTuple<Status, int, Tokenized?>;
+    using Result = ValueTuple<Signal, int, Tokenized?>;
     using Input = Buffer<object>;
     using Output = Buffer<object>;
     
@@ -57,7 +57,7 @@ namespace JsonLens.Test3
                             var (status, chars, emit) = ReadNext(ref @in, ref @out);
                             //and now our depth has changed, even without us having committed to reading anything! BEWARE!
                             
-                            if (status == Status.Ok && emit.HasValue) 
+                            if (status == Signal.Ok && emit.HasValue) 
                             {
                                 var token = emit.Value.Token;
 
@@ -157,7 +157,7 @@ namespace JsonLens.Test3
         }
 
         static Result Ok()
-            => (Status.Ok, 0, null);
+            => (Signal.Ok, 0, null);
 
 
 

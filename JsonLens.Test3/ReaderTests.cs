@@ -90,7 +90,7 @@ namespace JsonLens.Test
              
                 switch(status)
                 {
-                    case Status.Ok:
+                    case Signal.Ok:
                         if(emit.HasValue) {
                             var e = emit.Value;
                             output.Add((e.Token, json.Substring(index + e.Offset, e.Length)));
@@ -100,13 +100,13 @@ namespace JsonLens.Test
                         index += chars;
                         break;
 
-                    case Status.End:
+                    case Signal.End:
                         return output.ToArray();
 
-                    case Status.Underrun:
+                    case Signal.Underrun:
                         throw new NotImplementedException("UNDERRUN");
 
-                    case Status.BadInput:
+                    case Signal.BadInput:
                         throw new NotImplementedException("BADINPUT");
 
                 }

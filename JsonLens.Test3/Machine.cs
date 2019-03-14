@@ -14,9 +14,12 @@ namespace JsonLens.Test3
         ReadAll
     }
     
-    public enum Signal {
+    public enum Signal : byte
+    {
+        Ok,
+        Underrun,
         End,
-        Underrun
+        BadInput
     }
 
     public enum Stream {
@@ -69,7 +72,25 @@ namespace JsonLens.Test3
                     throw new NotImplementedException();
 
                 case Mode.ReadObject:
-//                    _tokenizer.Next(@in, default);
+                    var signal = _tokenizer.Next(ref @in, out var token);
+
+                    switch (signal) {
+                        case Signal.Ok:
+                            throw new NotImplementedException();
+                        
+                        default:
+                            return (signal, Stream.In);
+                    }
+                    
+                    //if we're reading an object,
+                    //the above better read an object token, or...
+                    //or, BADINPUT rises
+                    
+                    //and BADINPUT will be bubbled out of here
+                    //at this point, the program's failed
+                    //tho, each layer is a program
+                    //ReadLine might be tolerant of errors...
+                    //its up to ReadLine to recover
                     
                     //so the machine itself has its buffer of tokens
                     //which are written into here
